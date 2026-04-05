@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+  --dock-bg: #0c0d0f;
+  --dock-panel: #13151a;
+  --dock-border: #252830;
+  --dock-text: #edeae3;
+  --dock-muted: #8b9099;
+  --dock-accent: #c4f542;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--dock-bg);
+  color: var(--dock-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #9ccfd8;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
