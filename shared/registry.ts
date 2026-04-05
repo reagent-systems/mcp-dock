@@ -55,6 +55,8 @@ export interface RegistryOfficialMeta {
 export interface RegistryListItem {
   server: RegistryServer
   _meta?: Record<string, RegistryOfficialMeta | undefined>
+  /** Present when this row came from a user-configured extra catalog (not the primary registry pages). */
+  _catalogLabel?: string
 }
 
 export interface RegistryListResponse {

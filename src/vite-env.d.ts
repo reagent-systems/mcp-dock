@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 
+import type { CatalogExtraSource } from '../shared/catalog'
 import type { RegistryServer } from '../shared/registry'
 
 type McpClient = 'cursor' | 'claude' | 'vscode'
@@ -8,6 +9,7 @@ interface AppPrefs {
   backupOnWrite: boolean
   pathOverrides: Partial<Record<McpClient, string>>
   defaultClient: McpClient
+  catalogExtras: CatalogExtraSource[]
 }
 
 interface McpDockApi {

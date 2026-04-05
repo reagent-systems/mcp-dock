@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { CatalogExtraSource } from '../../shared/catalog.js'
 import type { RegistryServer } from '../../shared/registry.js'
 
 export type McpClient = 'cursor' | 'claude' | 'vscode'
@@ -7,6 +8,7 @@ export interface AppPrefs {
   backupOnWrite: boolean
   pathOverrides: Partial<Record<McpClient, string>>
   defaultClient: McpClient
+  catalogExtras: CatalogExtraSource[]
 }
 
 contextBridge.exposeInMainWorld('mcpDock', {

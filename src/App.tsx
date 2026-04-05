@@ -5,6 +5,9 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { mergeOfficialAndExtras, catalogRowKey } from '../shared/catalog'
+import type { CatalogExtraSource } from '../shared/catalog'
+import { fetchExtraCatalogs } from './lib/catalog-fetch'
 import { fetchRegistryPage } from './lib/registry-api'
 import type { RegistryListItem, RegistryServer } from '../shared/registry'
 import { filterLatestOnly, listRequiredInputs, suggestServerKey } from '../shared/install'
@@ -33,6 +36,8 @@ export default function App() {
   const [selected, setSelected] = useState<RegistryServer | null>(null)
   const [installOpen, setInstallOpen] = useState(false)
 
+  const prefsQ = useQuery({ queryKey: ['prefs'], queryFn: () => window.mcpDock.getPrefs() })
+
   const registryQ = useInfiniteQuery({
     queryKey: ['registry'],
     initialPageParam: undefined as string | undefined,
@@ -40,10 +45,31 @@ export default function App() {
     getNextPageParam: (last) => last.metadata?.nextCursor ?? undefined,
   })
 
+  const extrasKey = JSON.stringify(prefsQ.data?.catalogExtras ?? [])
+  const extrasQ = useQuery({
+    queryKey: ['catalog-extras', extrasKey],
+    enabled: !!prefsQ.data && (prefsQ.data.catalogExtras?.length ?? 0) > 0,
+    queryFn: () => fetchExtraCatalogs(prefsQ.data!.catalogExtras),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const extraBundles = useMemo(() => {
+    if (!extrasQ.data) return []
+    return extrasQ.data
+      .filter((r): r is { label: string; rows: RegistryListItem[] } => 'rows' in r)
+      .map((r) => ({ label: r.label, rows: filterLatestOnly(r.rows) }))
+  }, [extrasQ.data])
+
+  const extrasErrors = useMemo(
+    () =>
+      (extrasQ.data ?? []).filter((r): r is { label: string; error: string } => 'error' in r),
+    [extrasQ.data],
+  )
+
   const items = useMemo(() => {
-    const rows = registryQ.data?.pages.flatMap((p) => p.servers) ?? []
-    return filterLatestOnly(rows)
-  }, [registryQ.data])
+    const official = filterLatestOnly(registryQ.data?.pages.flatMap((p) => p.servers) ?? [])
+    return mergeOfficialAndExtras(official, extraBundles)
+  }, [registryQ.data, extraBundles])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -60,7 +86,7 @@ export default function App() {
       <aside className="flex w-56 shrink-0 flex-col border-r border-[#252830] bg-[#0f1013]">
         <div className="border-b border-[#252830] px-4 py-5">
           <div className="text-lg font-semibold tracking-tight">MCP Dock</div>
-          <p className="mt-1 text-xs text-[#8b9099]">Browse the official registry and merge installs into your tools.</p>
+          <p className="mt-1 text-xs text-[#8b9099]">Browse the MCP registry plus any extra catalogs you add in Settings.</p>
         </div>
         <nav className="flex flex-col gap-1 p-3">
           <SideBtn active={tab === 'discover'} onClick={() => setTab('discover')}>
@@ -74,11 +100,11 @@ export default function App() {
           </SideBtn>
         </nav>
         <div className="mt-auto border-t border-[#252830] p-3 text-[10px] leading-snug text-[#6d7178]">
-          Catalog from{' '}
+          Primary catalog:{' '}
           <a className="text-[#9ccfd8]" href="https://registry.modelcontextprotocol.io/docs" target="_blank" rel="noreferrer">
             MCP Registry
           </a>
-          . Installs run the same commands as a manual config edit.
+          . Add more directory URLs under Settings.
         </div>
       </aside>
 
@@ -86,6 +112,8 @@ export default function App() {
         {tab === 'discover' && (
           <DiscoverPane
             registryQ={registryQ}
+            extrasLoading={extrasQ.isFetching}
+            extrasErrors={extrasErrors}
             search={search}
             setSearch={setSearch}
             filtered={filtered}
@@ -137,6 +165,8 @@ function SideBtn(props: {
 
 function DiscoverPane(props: {
   registryQ: ReturnType<typeof useInfiniteQuery>
+  extrasLoading: boolean
+  extrasErrors: { label: string; error: string }[]
   search: string
   setSearch: (v: string) => void
   filtered: RegistryListItem[]
@@ -144,17 +174,23 @@ function DiscoverPane(props: {
   onSelect: (row: RegistryListItem) => void
   onInstall: () => void
 }) {
-  const { registryQ, search, setSearch, filtered, selected, onSelect, onInstall } = props
+  const { registryQ, extrasLoading, extrasErrors, search, setSearch, filtered, selected, onSelect, onInstall } =
+    props
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <section className="flex min-h-[320px] min-w-0 flex-1 flex-col border-b border-[#252830] lg:min-h-0 lg:border-b-0 lg:border-r">
-        <header className="flex items-center gap-3 border-b border-[#252830] px-4 py-3">
+        <header className="flex flex-wrap items-center gap-3 border-b border-[#252830] px-4 py-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or description…"
-            className="h-9 flex-1 rounded-lg border border-[#2e323c] bg-[#13151a] px-3 text-sm outline-none ring-[#c4f542] placeholder:text-[#6d7178] focus:ring-1"
+            className="h-9 min-w-[12rem] flex-1 rounded-lg border border-[#2e323c] bg-[#13151a] px-3 text-sm outline-none ring-[#c4f542] placeholder:text-[#6d7178] focus:ring-1"
           />
+          {extrasLoading && (
+            <span className="text-xs text-[#8b9099]" title="Loading extra catalogs">
+              + catalogs…
+            </span>
+          )}
           <button
             type="button"
             onClick={() => registryQ.fetchNextPage()}
@@ -164,6 +200,12 @@ function DiscoverPane(props: {
             {registryQ.isFetchingNextPage ? 'Loading…' : registryQ.hasNextPage ? 'Load more' : 'End of catalog'}
           </button>
         </header>
+        {extrasErrors.length > 0 && (
+          <div className="border-b border-amber-900/40 bg-amber-950/20 px-4 py-2 text-xs text-amber-100/90">
+            <span className="font-medium">Some extra catalogs failed:</span>{' '}
+            {extrasErrors.map((e) => `${e.label} (${e.error})`).join(' · ')}
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {registryQ.isError && (
             <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
@@ -178,7 +220,7 @@ function DiscoverPane(props: {
               return (
                 <button
                   type="button"
-                  key={`${s.name}:${s.version}`}
+                  key={catalogRowKey(row)}
                   onClick={() => onSelect(row)}
                   className={`group flex flex-col rounded-xl border p-3 text-left transition ${
                     active
@@ -200,9 +242,19 @@ function DiscoverPane(props: {
                     </div>
                   </div>
                   <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[#bfc3c9]">{s.description}</p>
-                  <div className="mt-3 flex items-center justify-between text-[10px] text-[#6d7178]">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-1 text-[10px] text-[#6d7178]">
                     <span>v{s.version}</span>
-                    <span className="rounded bg-[#0f1013] px-2 py-0.5 ring-1 ring-[#2a2e38]">{transportLabel(s)}</span>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {row._catalogLabel && (
+                        <span
+                          className="rounded bg-[#1f2418] px-2 py-0.5 ring-1 ring-[#3d4a2a] text-[#c4f542]/90"
+                          title="From an extra catalog in Settings"
+                        >
+                          {row._catalogLabel}
+                        </span>
+                      )}
+                      <span className="rounded bg-[#0f1013] px-2 py-0.5 ring-1 ring-[#2a2e38]">{transportLabel(s)}</span>
+                    </div>
                   </div>
                 </button>
               )
@@ -455,17 +507,20 @@ function InstalledPane() {
 }
 
 function SettingsPane() {
+  const qc = useQueryClient()
   const q = useQuery({ queryKey: ['prefs'], queryFn: () => window.mcpDock.getPrefs() })
   const dp = useQuery({ queryKey: ['defaults'], queryFn: () => window.mcpDock.defaultPaths() })
   const [backupOnWrite, setBackupOnWrite] = useState(true)
   const [defaultClient, setDefaultClient] = useState<McpClient>('cursor')
   const [paths, setPaths] = useState<Partial<Record<McpClient, string>>>({})
+  const [catalogExtras, setCatalogExtras] = useState<CatalogExtraSource[]>([])
 
   useEffect(() => {
     if (!q.data) return
     setBackupOnWrite(q.data.backupOnWrite)
     setDefaultClient(q.data.defaultClient)
     setPaths(q.data.pathOverrides ?? {})
+    setCatalogExtras(q.data.catalogExtras ?? [])
   }, [q.data])
 
   const save = useMutation({
@@ -478,7 +533,12 @@ function SettingsPane() {
           claude: paths.claude || undefined,
           vscode: paths.vscode || undefined,
         },
+        catalogExtras,
       }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['prefs'] })
+      void qc.invalidateQueries({ queryKey: ['catalog-extras'] })
+    },
   })
 
   return (
@@ -514,6 +574,86 @@ function SettingsPane() {
             />
           </label>
         ))}
+
+        <div className="rounded-xl border border-[#2e323c] bg-[#0f1013] p-4">
+          <h2 className="text-sm font-medium text-[#edeae3]">Extra MCP catalogs</h2>
+          <p className="mt-1 text-xs leading-relaxed text-[#8b9099]">
+            Merge more directories into Discover. Use <span className="font-mono text-[#c8ccd3]">registry</span> for
+            any MCP Registry-compatible <span className="font-mono">…/v0/servers</span> endpoint (paginates
+            automatically). Use <span className="font-mono">json</span> for a single JSON file with{' '}
+            <span className="font-mono">servers: [...]</span> in the same shape as the registry, or a bare array of
+            entries. CORS must allow this app to fetch the URL.
+          </p>
+          <ul className="mt-3 list-none space-y-3 p-0">
+            {catalogExtras.map((row, idx) => (
+              <li key={row.id} className="rounded-lg border border-[#252830] bg-[#13151a] p-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+                  <label className="block min-w-0 text-xs">
+                    <span className="text-[#8b9099]">Label</span>
+                    <input
+                      value={row.label}
+                      onChange={(e) => {
+                        const next = [...catalogExtras]
+                        next[idx] = { ...row, label: e.target.value }
+                        setCatalogExtras(next)
+                      }}
+                      placeholder="e.g. My team mirror"
+                      className="mt-1 box-border w-full min-w-0 rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
+                    />
+                  </label>
+                  <label className="block min-w-0 text-xs">
+                    <span className="text-[#8b9099]">Kind</span>
+                    <select
+                      value={row.kind}
+                      onChange={(e) => {
+                        const next = [...catalogExtras]
+                        next[idx] = { ...row, kind: e.target.value as CatalogExtraSource['kind'] }
+                        setCatalogExtras(next)
+                      }}
+                      className="mt-1 box-border w-full min-w-0 max-w-full rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
+                    >
+                      <option value="registry">registry (paginated API)</option>
+                      <option value="json">json (single file)</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="mt-1 block min-w-0 text-xs md:col-span-2">
+                  <span className="text-[#8b9099]">URL</span>
+                  <input
+                    value={row.url}
+                    onChange={(e) => {
+                      const next = [...catalogExtras]
+                      next[idx] = { ...row, url: e.target.value }
+                      setCatalogExtras(next)
+                    }}
+                    placeholder="https://…/v0/servers or https://…/catalog.json"
+                    className="mt-1 box-border w-full min-w-0 rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 font-mono text-xs outline-none focus:ring-1 focus:ring-[#c4f542]"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCatalogExtras(catalogExtras.filter((_, i) => i !== idx))}
+                  className="mt-2 text-xs text-red-300/90 hover:underline"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() =>
+              setCatalogExtras((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), label: '', kind: 'json', url: '' },
+              ])
+            }
+            className="mt-3 rounded-lg bg-[#1b1d24] px-3 py-2 text-xs ring-1 ring-[#2e323c] hover:bg-[#22252e]"
+          >
+            Add catalog
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => save.mutate()}
