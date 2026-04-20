@@ -6,7 +6,7 @@ export interface CatalogExtraSource {
   label: string
   /** Full URL to `.../v0/servers` (or compatible) for kind `registry`, or a JSON document for `json`. */
   url: string
-  kind: 'registry' | 'json'
+  kind: 'registry' | 'json' | 'html'
 }
 
 export function catalogRowKey(row: RegistryListItem): string {

@@ -515,6 +515,30 @@ function SettingsPane() {
   const [paths, setPaths] = useState<Partial<Record<McpClient, string>>>({})
   const [catalogExtras, setCatalogExtras] = useState<CatalogExtraSource[]>([])
 
+  function normalizeCatalogInputUrl(
+    raw: string,
+    curKind: CatalogExtraSource['kind'],
+  ): { url: string; kind: CatalogExtraSource['kind'] } {
+    const s = raw.trim()
+    if (!s) return { url: raw, kind: curKind }
+    let u: URL
+    try {
+      u = new URL(s)
+    }
+    catch {
+      return { url: raw, kind: curKind }
+    }
+
+    // Heuristics: if it already looks like a registry endpoint, use registry mode.
+    if (u.pathname.includes('/v0/servers')) return { url: u.toString(), kind: 'registry' }
+
+    // Heuristics: if it looks like a JSON file, default to json mode.
+    if (u.pathname.toLowerCase().endsWith('.json')) return { url: u.toString(), kind: 'json' }
+
+    // Otherwise, keep whatever kind the user chose; HTML parsing is a separate kind.
+    return { url: u.toString(), kind: curKind }
+  }
+
   useEffect(() => {
     if (!q.data) return
     setBackupOnWrite(q.data.backupOnWrite)
@@ -614,6 +638,7 @@ function SettingsPane() {
                     >
                       <option value="registry">registry (paginated API)</option>
                       <option value="json">json (single file)</option>
+                      <option value="html">html (scrape a web page)</option>
                     </select>
                   </label>
                 </div>
@@ -622,8 +647,9 @@ function SettingsPane() {
                   <input
                     value={row.url}
                     onChange={(e) => {
+                      const normalized = normalizeCatalogInputUrl(e.target.value, row.kind)
                       const next = [...catalogExtras]
-                      next[idx] = { ...row, url: e.target.value }
+                      next[idx] = { ...row, url: normalized.url, kind: normalized.kind }
                       setCatalogExtras(next)
                     }}
                     placeholder="https://…/v0/servers or https://…/catalog.json"
@@ -645,7 +671,7 @@ function SettingsPane() {
             onClick={() =>
               setCatalogExtras((prev) => [
                 ...prev,
-                { id: crypto.randomUUID(), label: '', kind: 'json', url: '' },
+                { id: crypto.randomUUID(), label: '', kind: 'html', url: '' },
               ])
             }
             className="mt-3 rounded-lg bg-[#1b1d24] px-3 py-2 text-xs ring-1 ring-[#2e323c] hover:bg-[#22252e]"
