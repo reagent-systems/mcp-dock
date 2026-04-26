@@ -1,6 +1,7 @@
+import { OFFICIAL_REGISTRY_SERVERS_URL } from '../../shared/official-registry.js'
 import type { RegistryListResponse } from '../../shared/registry.js'
 
-const BASE = 'https://registry.modelcontextprotocol.io/v0/servers'
+const BASE = OFFICIAL_REGISTRY_SERVERS_URL
 
 export async function fetchRegistryPage(cursor?: string): Promise<RegistryListResponse> {
   const u = new URL(BASE)

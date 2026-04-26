@@ -14,11 +14,19 @@ export interface AppPrefs {
   catalogExtras: CatalogExtraSource[]
 }
 
+/** Directory listing from [mcpservers.org](https://mcpservers.org/) (HTML, paginated in-app). */
+export const BUILTIN_MCPSERVERS_ORG_CATALOG: CatalogExtraSource = {
+  id: 'built-in-mcpservers-org',
+  label: 'mcpservers.org',
+  kind: 'html',
+  url: 'https://mcpservers.org/all?sort=name',
+}
+
 const DEFAULT_PREFS: AppPrefs = {
   backupOnWrite: true,
   pathOverrides: {},
   defaultClient: 'cursor',
-  catalogExtras: [],
+  catalogExtras: [BUILTIN_MCPSERVERS_ORG_CATALOG],
 }
 
 export function prefsPath() {
@@ -62,5 +70,21 @@ export function updatePrefs(patch: Partial<AppPrefs>): AppPrefs {
 
 export function ensurePrefsFile() {
   const p = prefsPath()
-  if (!fs.existsSync(p)) savePrefs(DEFAULT_PREFS)
+  if (!fs.existsSync(p)) {
+    savePrefs(DEFAULT_PREFS)
+    return
+  }
+  try {
+    const cur = loadPrefs()
+    let next = cur.catalogExtras.filter(e => e.id !== 'built-in-mcp-registry')
+    let changed = next.length !== cur.catalogExtras.length
+    if (!next.some(e => e.id === BUILTIN_MCPSERVERS_ORG_CATALOG.id)) {
+      next = [...next, BUILTIN_MCPSERVERS_ORG_CATALOG]
+      changed = true
+    }
+    if (changed) savePrefs({ ...cur, catalogExtras: next })
+  }
+  catch {
+    /* ignore corrupt prefs */
+  }
 }

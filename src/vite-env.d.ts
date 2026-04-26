@@ -30,6 +30,8 @@ interface McpDockApi {
     entries: { key: string; summary: string }[]
   }>
   revealConfig: (client: McpClient) => Promise<void>
+  /** HTTP GET from the main process (bypasses renderer CORS). */
+  fetchCatalogText: (url: string) => Promise<string>
 }
 
 declare global {

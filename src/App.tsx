@@ -535,6 +535,9 @@ function SettingsPane() {
     // Heuristics: if it looks like a JSON file, default to json mode.
     if (u.pathname.toLowerCase().endsWith('.json')) return { url: u.toString(), kind: 'json' }
 
+    const host = u.hostname.replace(/^www\./, '')
+    if (host === 'mcpservers.org') return { url: u.toString(), kind: 'html' }
+
     // Otherwise, keep whatever kind the user chose; HTML parsing is a separate kind.
     return { url: u.toString(), kind: curKind }
   }

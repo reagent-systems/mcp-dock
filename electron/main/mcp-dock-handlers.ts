@@ -1,5 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import type { RegistryServer } from '../../shared/registry.js'
+import { fetchCatalogTextFromNetwork } from './catalog-net.js'
 import { mergeMcpServersMap, removeFromMap } from './config-merge.js'
 import { readJsonObject, backupIfExists, atomicWriteJson } from './file-utils.js'
 import { buildInstallPlan } from './install-plan.js'
@@ -30,6 +31,8 @@ export function registerMcpDockIpc() {
   ipcMain.handle('mcp-dock:get-prefs', (): AppPrefs => loadPrefs())
 
   ipcMain.handle('mcp-dock:set-prefs', (_, patch: Partial<AppPrefs>) => updatePrefs(patch))
+
+  ipcMain.handle('mcp-dock:fetch-catalog-text', (_, url: string) => fetchCatalogTextFromNetwork(url))
 
   ipcMain.handle(
     'mcp-dock:install',
