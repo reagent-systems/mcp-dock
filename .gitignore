@@ -13,6 +13,8 @@ dist-ssr
 dist-electron
 release
 *.local
+*.p12
+AuthKey_*.p8
 
 # Editor directories and files
 .vscode/.debug.env

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "dist-electron/main/index.js",
   "description": "Browse the MCP Registry and install servers into Cursor, Claude Desktop, and VS Code.",
-  "author": "",
+  "author": "MCP Dock",
   "license": "MIT",
   "private": true,
   "debug": {
@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder --publish never",
+    "release:mac": "bash scripts/release-mac.sh",
     "preview": "vite preview",
     "test": "vitest run"
   },
