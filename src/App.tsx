@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { REGISTRY_BOOTSTRAP_PAGE_COUNT } from '../shared/official-registry'
+import { builtinDiscoverServers } from '../shared/builtin-discover-servers'
 import { mergeOfficialAndExtras, catalogRowKey } from '../shared/catalog'
 import type { CatalogExtraSource } from '../shared/catalog'
 import { fetchExtraCatalogs } from './lib/catalog-fetch'
@@ -51,6 +53,25 @@ export default function App() {
     getNextPageParam: (last) => last.metadata?.nextCursor ?? undefined,
   })
 
+  /** Same cursor chain as `?cursor=` on the registry API — prefetch a few pages on Discover. */
+  useEffect(() => {
+    if (tab !== 'discover') return
+    const q = registryQ
+    if (q.status !== 'success' || !q.data) return
+    if (q.data.pages.length >= REGISTRY_BOOTSTRAP_PAGE_COUNT) return
+    if (!q.hasNextPage) return
+    if (q.isFetchingNextPage || q.isFetching) return
+    void q.fetchNextPage()
+  }, [
+    tab,
+    registryQ.status,
+    registryQ.data?.pages.length,
+    registryQ.hasNextPage,
+    registryQ.isFetchingNextPage,
+    registryQ.isFetching,
+    registryQ.fetchNextPage,
+  ])
+
   const extrasKey = JSON.stringify(prefsQ.data?.catalogExtras ?? [])
   const extrasQ = useQuery({
     queryKey: ['catalog-extras', extrasKey],
@@ -74,7 +95,8 @@ export default function App() {
 
   const items = useMemo(() => {
     const official = filterLatestOnly(registryQ.data?.pages.flatMap((p) => p.servers) ?? [])
-    return mergeOfficialAndExtras(official, extraBundles)
+    const merged = mergeOfficialAndExtras(official, extraBundles)
+    return [...builtinDiscoverServers, ...merged]
   }, [registryQ.data, extraBundles])
 
   const filtered = useMemo(() => {
@@ -95,6 +117,8 @@ export default function App() {
       return hay.includes(q)
     })
   }, [items, installableOnly, search])
+
+  const registryPageCount = registryQ.data?.pages.length ?? 0
 
   return (
     <div className="flex h-full min-h-0 bg-[#0c0d0f] text-[#edeae3]">
@@ -127,6 +151,7 @@ export default function App() {
         {tab === 'discover' && (
           <DiscoverPane
             registryQ={registryQ}
+            registryPageCount={registryPageCount}
             extrasLoading={extrasQ.isFetching}
             extrasErrors={extrasErrors}
             installableOnly={installableOnly}
@@ -182,6 +207,7 @@ function SideBtn(props: {
 
 function DiscoverPane(props: {
   registryQ: ReturnType<typeof useInfiniteQuery>
+  registryPageCount: number
   extrasLoading: boolean
   extrasErrors: { label: string; error: string }[]
   installableOnly: boolean
@@ -195,6 +221,7 @@ function DiscoverPane(props: {
 }) {
   const {
     registryQ,
+    registryPageCount,
     extrasLoading,
     extrasErrors,
     installableOnly,
@@ -206,6 +233,29 @@ function DiscoverPane(props: {
     onSelect,
     onInstall,
   } = props
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const registryQRef = useRef(registryQ)
+  registryQRef.current = registryQ
+
+  useEffect(() => {
+    const root = scrollRef.current
+    const target = sentinelRef.current
+    if (!root || !target) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return
+        const q = registryQRef.current
+        if (!q.hasNextPage || q.isFetchingNextPage) return
+        void q.fetchNextPage()
+      },
+      { root, rootMargin: '320px', threshold: 0 },
+    )
+    io.observe(target)
+    return () => io.disconnect()
+  }, [filtered.length, registryPageCount])
+
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <section className="flex min-h-[320px] min-w-0 flex-1 flex-col border-b border-[#252830] lg:min-h-0 lg:border-b-0 lg:border-r">
@@ -235,8 +285,13 @@ function DiscoverPane(props: {
             onClick={() => registryQ.fetchNextPage()}
             disabled={!registryQ.hasNextPage || registryQ.isFetchingNextPage}
             className="h-9 shrink-0 rounded-lg bg-[#1b1d24] px-3 text-sm text-[#edeae3] ring-1 ring-[#2e323c] hover:bg-[#22252e] disabled:opacity-40"
+            title="Uses registry API cursor pagination (metadata.nextCursor)"
           >
-            {registryQ.isFetchingNextPage ? 'Loading…' : registryQ.hasNextPage ? 'Load more' : 'End of catalog'}
+            {registryQ.isFetchingNextPage
+              ? 'Loading…'
+              : registryQ.hasNextPage
+                ? `Load more · registry ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`
+                : `End of registry · ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`}
           </button>
         </header>
         {extrasErrors.length > 0 && (
@@ -245,7 +300,7 @@ function DiscoverPane(props: {
             {extrasErrors.map((e) => `${e.label} (${e.error})`).join(' · ')}
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4">
           {registryQ.isError && (
             <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
               {(registryQ.error as Error).message}
@@ -299,6 +354,7 @@ function DiscoverPane(props: {
               )
             })}
           </div>
+          <div ref={sentinelRef} className="h-1 w-full shrink-0" aria-hidden />
         </div>
       </section>
 
