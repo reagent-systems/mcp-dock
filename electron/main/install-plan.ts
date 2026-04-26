@@ -102,12 +102,10 @@ export function buildInstallPlan(
     }
   }
 
-  const remote = server.remotes?.find(
-    r =>
-      (r.type === 'streamable-http' || r.type === 'http' || r.type === 'sse')
-      && r.url
-      && !hasTemplate(r.url),
-  )
+  const remote = server.remotes?.find((r) => {
+    const t = r.type === 'streamableHttp' ? 'streamable-http' : r.type
+    return (t === 'streamable-http' || t === 'http' || t === 'sse') && r.url && !hasTemplate(r.url)
+  })
   if (remote) {
     const headersDef = remote.headers ?? []
     const missingH = headersDef.filter(h => h.isRequired && !(h.name in headerValues && String(headerValues[h.name]).length))

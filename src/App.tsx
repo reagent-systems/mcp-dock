@@ -339,18 +339,32 @@ function InstallModal({
   onDone: () => void
 }) {
   const prefsQ = useQuery({ queryKey: ['prefs'], queryFn: () => window.mcpDock.getPrefs() })
+  const enrichQ = useQuery({
+    queryKey: ['enrich-mcpservers', server.name, server.version, server.websiteUrl ?? ''],
+    queryFn: () => window.mcpDock.enrichMcpserversOrgServer(server),
+    staleTime: 10 * 60 * 1000,
+  })
+  const effectiveServer = enrichQ.data ?? server
+  const mcpserversListing = server.name.startsWith('mcpservers.org/servers/')
   const [client, setClient] = useState<McpClient>('cursor')
   const [serverKey, setServerKey] = useState(() => suggestServerKey(server.name))
-  const { env: envFields, headers: headerFields } = useMemo(() => listRequiredInputs(server), [server])
-  const [env, setEnv] = useState<Record<string, string>>(() => {
-    const o: Record<string, string> = {}
-    for (const e of envFields) {
-      if (e.default) o[e.name] = e.default
-    }
-    return o
-  })
+  const { env: envFields, headers: headerFields } = useMemo(
+    () => listRequiredInputs(effectiveServer),
+    [effectiveServer],
+  )
+  const [env, setEnv] = useState<Record<string, string>>({})
   const [headers, setHeaders] = useState<Record<string, string>>({})
   const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    const { env: ef } = listRequiredInputs(effectiveServer)
+    const o: Record<string, string> = {}
+    for (const e of ef) {
+      if (e.default) o[e.name] = e.default
+    }
+    setEnv(o)
+    setHeaders({})
+  }, [effectiveServer])
 
   useEffect(() => {
     if (prefsQ.data?.defaultClient) setClient(prefsQ.data.defaultClient)
@@ -359,7 +373,7 @@ function InstallModal({
   const mut = useMutation({
     mutationFn: async () => {
       setErr(null)
-      return window.mcpDock.install({ client, serverKey, server, env, headers })
+      return window.mcpDock.install({ client, serverKey, server: effectiveServer, env, headers })
     },
     onSuccess: onDone,
     onError: (e: Error) => setErr(e.message),
@@ -398,6 +412,9 @@ function InstallModal({
               className="mt-1 w-full rounded-lg border border-[#2e323c] bg-[#0f1013] px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
             />
           </label>
+          {enrichQ.isFetching && (
+            <p className="text-xs text-[#6d7178]">Looking up MCP endpoint on mcpservers.org…</p>
+          )}
           {envFields.map((f) => (
             <label key={f.name} className="block">
               <span className="text-xs text-[#8b9099]">
@@ -434,7 +451,7 @@ function InstallModal({
           <button
             type="button"
             onClick={() => mut.mutate()}
-            disabled={mut.isPending}
+            disabled={mut.isPending || (mcpserversListing && enrichQ.isFetching)}
             className="h-10 flex-1 rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:opacity-50"
           >
             {mut.isPending ? 'Writing config…' : 'Install'}

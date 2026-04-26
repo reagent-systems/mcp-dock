@@ -32,6 +32,8 @@ interface McpDockApi {
   revealConfig: (client: McpClient) => Promise<void>
   /** HTTP GET from the main process (bypasses renderer CORS). */
   fetchCatalogText: (url: string) => Promise<string>
+  /** Resolve mcpservers.org listing → remote URL(s) from the site detail page. */
+  enrichMcpserversOrgServer: (server: RegistryServer) => Promise<RegistryServer>
 }
 
 declare global {

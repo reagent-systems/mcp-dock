@@ -26,12 +26,10 @@ export function listRequiredInputs(server: RegistryServer) {
   const stdioPypi = pkgs.find(p => p.registryType === 'pypi' && p.transport?.type === 'stdio')
   const pkg: RegistryPackage | undefined = stdioNpm ?? stdioPypi
   const env = [...(pkg?.environmentVariables ?? [])]
-  const remote = server.remotes?.find(
-    r =>
-      (r.type === 'streamable-http' || r.type === 'http' || r.type === 'sse')
-      && r.url
-      && !hasTemplate(r.url),
-  )
+  const remote = server.remotes?.find((r) => {
+    const t = r.type === 'streamableHttp' ? 'streamable-http' : r.type
+    return (t === 'streamable-http' || t === 'http' || t === 'sse') && r.url && !hasTemplate(r.url)
+  })
   const headers = remote?.headers ?? []
   return { env, headers }
 }

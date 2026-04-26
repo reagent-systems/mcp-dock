@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('mcpDock', {
     ipcRenderer.invoke('mcp-dock:reveal-config', client),
   fetchCatalogText: (url: string): Promise<string> =>
     ipcRenderer.invoke('mcp-dock:fetch-catalog-text', url),
+  enrichMcpserversOrgServer: (server: RegistryServer): Promise<RegistryServer> =>
+    ipcRenderer.invoke('mcp-dock:enrich-mcpservers-org', server),
 })
 
 function domReady(condition: DocumentReadyState[] = ['complete', 'interactive']) {
