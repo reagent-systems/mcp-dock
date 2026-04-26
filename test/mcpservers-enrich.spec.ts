@@ -45,6 +45,16 @@ describe('extractRemotesFromMcpserversDetailHtml', () => {
     const r = extractRemotesFromMcpserversDetailHtml(html)
     expect(r.some(x => x.url.includes('vscode.dev'))).toBe(false)
   })
+
+  it('drops apex /mcp marketing URL when mcp.{domain}/mcp exists', () => {
+    const html = `
+      <a href="https://twominutereports.com/mcp">Marketing MCP</a>
+      <code>https://mcp.twominutereports.com/mcp</code>
+    `
+    const r = extractRemotesFromMcpserversDetailHtml(html)
+    expect(r.some(x => x.url === 'https://mcp.twominutereports.com/mcp')).toBe(true)
+    expect(r.some(x => x.url === 'https://twominutereports.com/mcp')).toBe(false)
+  })
 })
 
 describe('extractNpmStdioPackagesFromMcpserversDetailHtml', () => {

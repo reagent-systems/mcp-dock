@@ -107,6 +107,45 @@ function isNoiseMcpUrl(url: string): boolean {
   )
 }
 
+/**
+ * Many vendors expose a marketing page at `https://vendor.com/mcp` (HTML, POST 405) while the real
+ * gateway is `https://mcp.vendor.com/mcp`. Drop the apex/www bare `/mcp` URL when the matching
+ * `mcp.*` host is also present.
+ */
+function dropApexBareMcpWhenMcpSubdomainExists(remotes: RegistryRemote[]): RegistryRemote[] {
+  const drop = new Set<string>()
+  for (const r of remotes) {
+    try {
+      const u = new URL(r.url)
+      const path = (u.pathname.replace(/\/$/, '') || '/').toLowerCase()
+      if (path !== '/mcp') continue
+      const host = u.hostname.toLowerCase()
+      if (host.startsWith('mcp.')) continue
+      const apexish = host.replace(/^www\./, '')
+      const parts = apexish.split('.')
+      if (parts.length !== 2) continue
+      const mcpHost = `mcp.${apexish}`
+      const hasSub = remotes.some((o) => {
+        if (o.url === r.url) return false
+        try {
+          const v = new URL(o.url)
+          if (v.hostname.toLowerCase() !== mcpHost) return false
+          const p2 = (v.pathname.replace(/\/$/, '') || '/').toLowerCase()
+          return p2 === '/mcp'
+        }
+        catch {
+          return false
+        }
+      })
+      if (hasSub) drop.add(r.url)
+    }
+    catch {
+      continue
+    }
+  }
+  return remotes.filter(r => !drop.has(r.url))
+}
+
 function sweepRemoteMcpUrls(html: string): RegistryRemote[] {
   const out: RegistryRemote[] = []
   const re =
@@ -202,7 +241,7 @@ export function extractRemotesFromMcpserversDetailHtml(html: string): RegistryRe
       ...(r.headers?.length ? { headers: r.headers } : {}),
     })
   }
-  return out
+  return dropApexBareMcpWhenMcpSubdomainExists(out)
 }
 
 function isSkippableNpxTail(html: string, endIdx: number): boolean {
