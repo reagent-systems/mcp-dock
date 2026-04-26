@@ -10,6 +10,11 @@ import type { CatalogExtraSource } from '../shared/catalog'
 import { fetchExtraCatalogs } from './lib/catalog-fetch'
 import { fetchRegistryPage } from './lib/registry-api'
 import type { RegistryListItem, RegistryServer } from '../shared/registry'
+import {
+  discoverInstallGate,
+  mayResolveViaGithubReadmeEnrich,
+  resolveRegistryInstallTarget,
+} from '../shared/install-target'
 import { filterLatestOnly, listRequiredInputs, suggestServerKey } from '../shared/install'
 
 type Tab = 'discover' | 'installed' | 'settings'
@@ -33,6 +38,7 @@ export default function App() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('discover')
   const [search, setSearch] = useState('')
+  const [installableOnly, setInstallableOnly] = useState(false)
   const [selected, setSelected] = useState<RegistryServer | null>(null)
   const [installOpen, setInstallOpen] = useState(false)
 
@@ -72,14 +78,23 @@ export default function App() {
   }, [registryQ.data, extraBundles])
 
   const filtered = useMemo(() => {
+    let rows = items
+    if (installableOnly) {
+      rows = rows.filter((row) => {
+        const s = row.server
+        if (s.name.startsWith('mcpservers.org/servers/')) return true
+        if (mayResolveViaGithubReadmeEnrich(s)) return true
+        return resolveRegistryInstallTarget(s).ok
+      })
+    }
     const q = search.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((row) => {
+    if (!q) return rows
+    return rows.filter((row) => {
       const s = row.server
       const hay = `${s.name} ${s.title ?? ''} ${s.description ?? ''}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [items, search])
+  }, [items, installableOnly, search])
 
   return (
     <div className="flex h-full min-h-0 bg-[#0c0d0f] text-[#edeae3]">
@@ -114,6 +129,8 @@ export default function App() {
             registryQ={registryQ}
             extrasLoading={extrasQ.isFetching}
             extrasErrors={extrasErrors}
+            installableOnly={installableOnly}
+            setInstallableOnly={setInstallableOnly}
             search={search}
             setSearch={setSearch}
             filtered={filtered}
@@ -167,6 +184,8 @@ function DiscoverPane(props: {
   registryQ: ReturnType<typeof useInfiniteQuery>
   extrasLoading: boolean
   extrasErrors: { label: string; error: string }[]
+  installableOnly: boolean
+  setInstallableOnly: (v: boolean) => void
   search: string
   setSearch: (v: string) => void
   filtered: RegistryListItem[]
@@ -174,8 +193,19 @@ function DiscoverPane(props: {
   onSelect: (row: RegistryListItem) => void
   onInstall: () => void
 }) {
-  const { registryQ, extrasLoading, extrasErrors, search, setSearch, filtered, selected, onSelect, onInstall } =
-    props
+  const {
+    registryQ,
+    extrasLoading,
+    extrasErrors,
+    installableOnly,
+    setInstallableOnly,
+    search,
+    setSearch,
+    filtered,
+    selected,
+    onSelect,
+    onInstall,
+  } = props
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <section className="flex min-h-[320px] min-w-0 flex-1 flex-col border-b border-[#252830] lg:min-h-0 lg:border-b-0 lg:border-r">
@@ -191,6 +221,15 @@ function DiscoverPane(props: {
               + catalogs…
             </span>
           )}
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-[#8b9099]">
+            <input
+              type="checkbox"
+              checked={installableOnly}
+              onChange={(e) => setInstallableOnly(e.target.checked)}
+              className="rounded border-[#2e323c] bg-[#13151a] text-[#c4f542] focus:ring-[#c4f542]"
+            />
+            Auto-installable only
+          </label>
           <button
             type="button"
             onClick={() => registryQ.fetchNextPage()}
@@ -276,6 +315,7 @@ function DiscoverPane(props: {
 }
 
 function DetailPanel({ server, onInstall }: { server: RegistryServer; onInstall: () => void }) {
+  const gate = discoverInstallGate(server)
   const icon = server.icons?.[0]?.src
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -314,10 +354,14 @@ function DetailPanel({ server, onInstall }: { server: RegistryServer; onInstall:
         </div>
       </div>
       <div className="border-t border-[#252830] p-4">
+        {!gate.allowed && gate.blocker && (
+          <p className="mb-3 text-xs leading-relaxed text-amber-100/90">{gate.blocker}</p>
+        )}
         <button
           type="button"
-          onClick={onInstall}
-          className="h-10 w-full rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c]"
+          disabled={!gate.allowed}
+          onClick={() => gate.allowed && onInstall()}
+          className="h-10 w-full rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:cursor-not-allowed disabled:opacity-45"
         >
           Install…
         </button>
@@ -340,12 +384,13 @@ function InstallModal({
 }) {
   const prefsQ = useQuery({ queryKey: ['prefs'], queryFn: () => window.mcpDock.getPrefs() })
   const enrichQ = useQuery({
-    queryKey: ['enrich-mcpservers', server.name, server.version, server.websiteUrl ?? ''],
+    queryKey: ['enrich-catalog', server.name, server.version, server.websiteUrl ?? ''],
     queryFn: () => window.mcpDock.enrichMcpserversOrgServer(server),
     staleTime: 10 * 60 * 1000,
   })
   const effectiveServer = enrichQ.data ?? server
-  const mcpserversListing = server.name.startsWith('mcpservers.org/servers/')
+  const catalogEnrichPending =
+    server.name.startsWith('mcpservers.org/servers/') || mayResolveViaGithubReadmeEnrich(server)
   const [client, setClient] = useState<McpClient>('cursor')
   const [serverKey, setServerKey] = useState(() => suggestServerKey(server.name))
   const { env: envFields, headers: headerFields } = useMemo(
@@ -413,7 +458,7 @@ function InstallModal({
             />
           </label>
           {enrichQ.isFetching && (
-            <p className="text-xs text-[#6d7178]">Looking up MCP endpoint on mcpservers.org…</p>
+            <p className="text-xs text-[#6d7178]">Resolving install hints from the catalog / GitHub…</p>
           )}
           {envFields.map((f) => (
             <label key={f.name} className="block">
@@ -451,7 +496,7 @@ function InstallModal({
           <button
             type="button"
             onClick={() => mut.mutate()}
-            disabled={mut.isPending || (mcpserversListing && enrichQ.isFetching)}
+            disabled={mut.isPending || (catalogEnrichPending && enrichQ.isFetching)}
             className="h-10 flex-1 rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:opacity-50"
           >
             {mut.isPending ? 'Writing config…' : 'Install'}

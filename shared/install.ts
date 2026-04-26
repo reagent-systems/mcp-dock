@@ -1,4 +1,5 @@
-import type { RegistryListItem, RegistryPackage, RegistryServer } from './registry.js'
+import type { RegistryListItem, RegistryServer } from './registry.js'
+import { resolveRegistryInstallTarget } from './install-target.js'
 
 export function filterLatestOnly(items: RegistryListItem[]): RegistryListItem[] {
   return items.filter((item) => {
@@ -16,20 +17,13 @@ export function suggestServerKey(name: string): string {
   return s || 'mcp-server'
 }
 
-function hasTemplate(url: string) {
-  return /\{[^}]+\}/.test(url)
-}
-
 export function listRequiredInputs(server: RegistryServer) {
-  const pkgs = server.packages ?? []
-  const stdioNpm = pkgs.find(p => p.registryType === 'npm' && p.transport?.type === 'stdio')
-  const stdioPypi = pkgs.find(p => p.registryType === 'pypi' && p.transport?.type === 'stdio')
-  const pkg: RegistryPackage | undefined = stdioNpm ?? stdioPypi
-  const env = [...(pkg?.environmentVariables ?? [])]
-  const remote = server.remotes?.find((r) => {
-    const t = r.type === 'streamableHttp' ? 'streamable-http' : r.type
-    return (t === 'streamable-http' || t === 'http' || t === 'sse') && r.url && !hasTemplate(r.url)
-  })
-  const headers = remote?.headers ?? []
-  return { env, headers }
+  const target = resolveRegistryInstallTarget(server)
+  if (!target.ok) return { env: [], headers: [] }
+  if (target.kind === 'npm' || target.kind === 'pypi') {
+    const pkg = target.pkg
+    return { env: [...(pkg.environmentVariables ?? [])], headers: [] }
+  }
+  const headers = target.remote.headers ?? []
+  return { env: [], headers }
 }

@@ -3,13 +3,10 @@ import type {
   RegistryPackage,
   RegistryServer,
 } from '../../shared/registry.js'
+import { resolveRegistryInstallTarget } from '../../shared/install-target.js'
 import { filterLatestOnly, suggestServerKey } from '../../shared/install.js'
 
 export { filterLatestOnly, suggestServerKey }
-
-function hasTemplate(url: string) {
-  return /\{[^}]+\}/.test(url)
-}
 
 function collectEnvDefs(pkg?: RegistryPackage): RegistryEnvVar[] {
   return [...(pkg?.environmentVariables ?? [])]
@@ -24,89 +21,112 @@ export type InstallPlanOk = {
   vscode: Record<string, unknown>
 }
 
+function planFromReadmeStdioHint(
+  server: RegistryServer,
+  env: Record<string, string>,
+): InstallPlanOk {
+  const h = server.mcpDockStdioHint!
+  const mergedEnv: Record<string, string> = { ...(h.env ?? {}) }
+  for (const [k, v] of Object.entries(env)) {
+    if (String(v).length) mergedEnv[k] = String(v)
+  }
+  const cursorClaude: Record<string, unknown> = {
+    command: h.command,
+    args: h.args,
+    ...(Object.keys(mergedEnv).length ? { env: mergedEnv } : {}),
+  }
+  const vscode: Record<string, unknown> = {
+    type: 'stdio',
+    command: h.command,
+    args: h.args,
+    ...(Object.keys(mergedEnv).length ? { env: mergedEnv } : {}),
+  }
+  return {
+    ok: true,
+    requiredEnv: [],
+    requiredHeaders: [],
+    cursorClaude,
+    vscode,
+  }
+}
+
 export function buildInstallPlan(
   server: RegistryServer,
   env: Record<string, string>,
   headerValues: Record<string, string>,
 ): InstallPlanError | InstallPlanOk {
-  const pkgs = server.packages ?? []
-  const stdioNpm = pkgs.find(p => p.registryType === 'npm' && p.transport?.type === 'stdio')
-  const stdioPypi = pkgs.find(p => p.registryType === 'pypi' && p.transport?.type === 'stdio')
-  const ociOnly = pkgs.length > 0 && pkgs.every(p => p.registryType === 'oci') && !stdioNpm && !stdioPypi
-  if (ociOnly)
-    return { ok: false, message: 'OCI / container-based installs are not supported in MCP Dock yet. Add this server manually.' }
+  const target = resolveRegistryInstallTarget(server)
 
-  if (stdioNpm) {
-    const id = stdioNpm.identifier
-    const ver = stdioNpm.version
-    const envDefs = collectEnvDefs(stdioNpm)
-    const missing = envDefs.filter(d => d.isRequired && !(d.name in env && String(env[d.name]).length))
-    if (missing.length)
-      return { ok: false, message: `Missing required environment variables: ${missing.map(m => m.name).join(', ')}` }
+  if (target.ok) {
+    if (target.kind === 'npm') {
+      const pkg = target.pkg
+      const id = pkg.identifier
+      const ver = pkg.version
+      const envDefs = collectEnvDefs(pkg)
+      const missing = envDefs.filter(d => d.isRequired && !(d.name in env && String(env[d.name]).length))
+      if (missing.length)
+        return { ok: false, message: `Missing required environment variables: ${missing.map(m => m.name).join(', ')}` }
 
-    const cleaned: Record<string, string> = {}
-    for (const d of envDefs) {
-      const v = env[d.name] ?? d.default
-      if (v !== undefined && String(v).length) cleaned[d.name] = String(v)
+      const cleaned: Record<string, string> = {}
+      for (const d of envDefs) {
+        const v = env[d.name] ?? d.default
+        if (v !== undefined && String(v).length) cleaned[d.name] = String(v)
+      }
+      const cursorClaude = {
+        command: 'npx',
+        args: ['-y', `${id}@${ver}`],
+        ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
+      }
+      const vscode = {
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', `${id}@${ver}`],
+        ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
+      }
+      return {
+        ok: true,
+        requiredEnv: envDefs,
+        requiredHeaders: [],
+        cursorClaude,
+        vscode,
+      }
     }
-    const cursorClaude = {
-      command: 'npx',
-      args: ['-y', `${id}@${ver}`],
-      ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
-    }
-    const vscode = {
-      type: 'stdio',
-      command: 'npx',
-      args: ['-y', `${id}@${ver}`],
-      ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
-    }
-    return {
-      ok: true,
-      requiredEnv: envDefs,
-      requiredHeaders: [],
-      cursorClaude,
-      vscode,
-    }
-  }
 
-  if (stdioPypi) {
-    const id = stdioPypi.identifier
-    const ver = stdioPypi.version
-    const envDefs = collectEnvDefs(stdioPypi)
-    const missing = envDefs.filter(d => d.isRequired && !(d.name in env && String(env[d.name]).length))
-    if (missing.length)
-      return { ok: false, message: `Missing required environment variables: ${missing.map(m => m.name).join(', ')}` }
+    if (target.kind === 'pypi') {
+      const pkg = target.pkg
+      const id = pkg.identifier
+      const ver = pkg.version
+      const envDefs = collectEnvDefs(pkg)
+      const missing = envDefs.filter(d => d.isRequired && !(d.name in env && String(env[d.name]).length))
+      if (missing.length)
+        return { ok: false, message: `Missing required environment variables: ${missing.map(m => m.name).join(', ')}` }
 
-    const cleaned: Record<string, string> = {}
-    for (const d of envDefs) {
-      const v = env[d.name] ?? d.default
-      if (v !== undefined && String(v).length) cleaned[d.name] = String(v)
+      const cleaned: Record<string, string> = {}
+      for (const d of envDefs) {
+        const v = env[d.name] ?? d.default
+        if (v !== undefined && String(v).length) cleaned[d.name] = String(v)
+      }
+      const cursorClaude = {
+        command: 'uvx',
+        args: [`${id}==${ver}`],
+        ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
+      }
+      const vscode = {
+        type: 'stdio',
+        command: 'uvx',
+        args: [`${id}==${ver}`],
+        ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
+      }
+      return {
+        ok: true,
+        requiredEnv: envDefs,
+        requiredHeaders: [],
+        cursorClaude,
+        vscode,
+      }
     }
-    const cursorClaude = {
-      command: 'uvx',
-      args: [`${id}==${ver}`],
-      ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
-    }
-    const vscode = {
-      type: 'stdio',
-      command: 'uvx',
-      args: [`${id}==${ver}`],
-      ...(Object.keys(cleaned).length ? { env: cleaned } : {}),
-    }
-    return {
-      ok: true,
-      requiredEnv: envDefs,
-      requiredHeaders: [],
-      cursorClaude,
-      vscode,
-    }
-  }
 
-  const remote = server.remotes?.find((r) => {
-    const t = r.type === 'streamableHttp' ? 'streamable-http' : r.type
-    return (t === 'streamable-http' || t === 'http' || t === 'sse') && r.url && !hasTemplate(r.url)
-  })
-  if (remote) {
+    const remote = target.remote
     const headersDef = remote.headers ?? []
     const missingH = headersDef.filter(h => h.isRequired && !(h.name in headerValues && String(headerValues[h.name]).length))
     if (missingH.length)
@@ -117,7 +137,7 @@ export function buildInstallPlan(
       if (v !== undefined && String(v).length) headers[h.name] = String(v)
     }
 
-    const isSse = remote.type === 'sse'
+    const isSse = remote.type.toLowerCase() === 'sse'
     const vscodeType = isSse ? 'sse' : 'http'
     const cursorClaude: Record<string, unknown> = {
       url: remote.url,
@@ -137,11 +157,7 @@ export function buildInstallPlan(
     }
   }
 
-  if (server.remotes?.some(r => r.url && hasTemplate(r.url)))
-    return { ok: false, message: 'This server URL contains placeholders (for example {HOST}). Configure it manually in your MCP JSON.' }
+  if (server.mcpDockStdioHint) return planFromReadmeStdioHint(server, env)
 
-  return {
-    ok: false,
-    message: 'No supported install target for this listing (needs an npm/pypi stdio package or a concrete HTTP remote URL).',
-  }
+  return { ok: false, message: target.message }
 }

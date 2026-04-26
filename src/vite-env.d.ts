@@ -32,7 +32,7 @@ interface McpDockApi {
   revealConfig: (client: McpClient) => Promise<void>
   /** HTTP GET from the main process (bypasses renderer CORS). */
   fetchCatalogText: (url: string) => Promise<string>
-  /** Resolve mcpservers.org listing → remote URL(s) from the site detail page. */
+  /** Enrich HTML catalog rows: mcpservers.org detail page, then GitHub README / package.json for `github.com/o/r` stubs. */
   enrichMcpserversOrgServer: (server: RegistryServer) => Promise<RegistryServer>
 }
 

@@ -3,7 +3,7 @@ import type { RegistryServer } from '../../shared/registry.js'
 import { fetchCatalogTextFromNetwork } from './catalog-net.js'
 import { mergeMcpServersMap, removeFromMap } from './config-merge.js'
 import { readJsonObject, backupIfExists, atomicWriteJson } from './file-utils.js'
-import { enrichMcpserversOrgServerIfNeeded } from './mcpservers-enrich.js'
+import { enrichCatalogListingIfNeeded } from './catalog-enrich.js'
 import { buildInstallPlan } from './install-plan.js'
 import { resolveConfigPath, defaultConfigPath } from './paths.js'
 import type { AppPrefs, McpClient } from './prefs.js'
@@ -36,7 +36,7 @@ export function registerMcpDockIpc() {
   ipcMain.handle('mcp-dock:fetch-catalog-text', (_, url: string) => fetchCatalogTextFromNetwork(url))
 
   ipcMain.handle('mcp-dock:enrich-mcpservers-org', (_, server: RegistryServer) =>
-    enrichMcpserversOrgServerIfNeeded(server),
+    enrichCatalogListingIfNeeded(server),
   )
 
   ipcMain.handle(
@@ -57,7 +57,7 @@ export function registerMcpDockIpc() {
         throw new Error('Server key must contain only letters, numbers, underscores, and hyphens.')
       const prefs = loadPrefs()
       const file = resolveConfigPath(client, prefs.pathOverrides)
-      server = await enrichMcpserversOrgServerIfNeeded(server)
+      server = await enrichCatalogListingIfNeeded(server)
       const plan = buildInstallPlan(server, env, headers)
       if (!plan.ok) throw new Error(plan.message)
       const entry = client === 'vscode' ? plan.vscode : plan.cursorClaude

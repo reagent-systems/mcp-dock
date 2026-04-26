@@ -43,7 +43,7 @@ export function mcpserversDetailPageUrl(server: RegistryServer): string | null {
 }
 
 /** Decode common entities so JSON-ish snippets in HTML match our regexes. */
-function normalizeMcpserversHtml(html: string): string {
+export function normalizeMcpserversHtml(html: string): string {
   return html
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
@@ -321,7 +321,7 @@ export function extractPypiStdioPackagesFromMcpserversDetailHtml(html: string): 
   return packages
 }
 
-function hasUsableRemote(server: RegistryServer): boolean {
+export function registryServerHasConcreteHttpRemote(server: RegistryServer): boolean {
   return !!server.remotes?.some((r) => {
     if (!r.url || hasTemplateUrl(r.url)) return false
     const t = normalizeRegistryRemoteType(r.type)
@@ -332,7 +332,7 @@ function hasUsableRemote(server: RegistryServer): boolean {
 export async function enrichMcpserversOrgServerIfNeeded(server: RegistryServer): Promise<RegistryServer> {
   if (!isMcpserversOrgListing(server)) return server
   if (server.packages?.length) return server
-  if (hasUsableRemote(server)) return server
+  if (registryServerHasConcreteHttpRemote(server)) return server
 
   const detailUrl = mcpserversDetailPageUrl(server)
   if (!detailUrl) return server

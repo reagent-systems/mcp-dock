@@ -35,6 +35,13 @@ export interface RegistryPackage {
   environmentVariables?: RegistryEnvVar[]
 }
 
+/** README / enrichment: literal command+args when not expressible as npm/pypi (e.g. python3 path to mcp_server.py). */
+export interface McpDockStdioHint {
+  command: string
+  args: string[]
+  env?: Record<string, string>
+}
+
 export interface RegistryServer {
   name: string
   title?: string
@@ -45,6 +52,8 @@ export interface RegistryServer {
   icons?: { src: string; mimeType?: string }[]
   packages?: RegistryPackage[]
   remotes?: RegistryRemote[]
+  /** Set by MCP Dock enrichment when a README contains an mcpServers stdio block. Not part of the official registry schema. */
+  mcpDockStdioHint?: McpDockStdioHint
 }
 
 export interface RegistryOfficialMeta {
