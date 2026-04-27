@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8ff7d"/>
+      <stop offset="1" stop-color="#7db65e"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0.32" cy="0.24" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.28"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="7" y="7" width="50" height="50" rx="14" fill="url(#g)"/>
+  <rect x="7.5" y="7.5" width="49" height="49" rx="13.5" fill="none" stroke="#ffffff" stroke-opacity="0.18"/>
+  <rect x="7" y="7" width="50" height="50" rx="14" fill="url(#shine)" opacity="0.55"/>
+  <rect x="7" y="7" width="50" height="50" rx="14" fill="url(#gloss)" opacity="0.55"/>
+  <rect x="7" y="7" width="50" height="50" rx="14" fill="url(#shade)" opacity="0.55"/>
+</svg>
+
