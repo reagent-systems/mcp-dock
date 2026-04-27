@@ -1,91 +1,97 @@
-# electron-vite-react
+# MCP Dock
 
-[![awesome-vite](https://awesome.re/mentioned-badge.svg)](https://github.com/vitejs/awesome-vite)
-![GitHub stars](https://img.shields.io/github/stars/caoxiemeihao/vite-react-electron?color=fa6470)
-![GitHub issues](https://img.shields.io/github/issues/caoxiemeihao/vite-react-electron?color=d8b22d)
-![GitHub license](https://img.shields.io/github/license/caoxiemeihao/vite-react-electron)
-[![Required Node.JS >= 14.18.0 || >=16.0.0](https://img.shields.io/static/v1?label=node&message=14.18.0%20||%20%3E=16.0.0&logo=node.js&color=3f893e)](https://nodejs.org/about/releases)
+Browse the MCP Registry and install servers into **Cursor**, **Claude Code**, and **VS Code**.
 
-English | [简体中文](README.zh-CN.md)
+- Desktop app: Electron + Vite + React (source in `src/` + `electron/`)
+- Website: SvelteKit workspace (source in `website/`)
 
-## 👀 Overview
+## Features
 
-📦 Ready out of the box  
-🎯 Based on the official [template-react-ts](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts), project structure will be familiar to you  
-🌱 Easily extendable and customizable  
-💪 Supports Node.js API in the renderer process  
-🔩 Supports C/C++ native addons  
-🐞 Debugger configuration included  
-🖥 Easy to implement multiple windows  
+- Browse MCP servers and view their metadata
+- Install server configs into supported clients (Cursor / Claude Desktop / VS Code)
+- Packaged releases for macOS + Windows
 
-## 🛫 Quick Setup
+## Requirements
+
+- Node.js 18+ (20+ recommended)
+- npm
+
+## Getting started
+
+Install dependencies:
 
 ```sh
-# clone the project
-git clone https://github.com/electron-vite/electron-vite-react.git
-
-# enter the project directory
-cd electron-vite-react
-
-# install dependency
 npm install
+```
 
-# develop
+Run the desktop app in dev mode:
+
+```sh
 npm run dev
 ```
 
-## 🐞 Debug
+Run the website in dev mode:
 
-![electron-vite-react-debug.gif](/electron-vite-react-debug.gif)
-
-## 📂 Directory structure
-
-Familiar React application structure, just with `electron` folder on the top :wink:  
-*Files in this folder will be separated from your React application and built into `dist-electron`*  
-
-```tree
-├── electron                                 Electron-related code
-│   ├── main                                 Main-process source code
-│   └── preload                              Preload-scripts source code
-│
-├── release                                  Generated after production build, contains executables
-│   └── {version}
-│       ├── {os}-{os_arch}                   Contains unpacked application executable
-│       └── {app_name}_{version}.{ext}       Installer for the application
-│
-├── public                                   Static assets
-└── src                                      Renderer source code, your React application
+```sh
+npm run dev:website
 ```
 
-<!--
-## 🚨 Be aware
+## Build
 
-This template integrates Node.js API to the renderer process by default. If you want to follow **Electron Security Concerns** you might want to disable this feature. You will have to expose needed API by yourself.  
+Desktop app (packages into `release/<version>/`):
 
-To get started, remove the option as shown below. This will [modify the Vite configuration and disable this feature](https://github.com/electron-vite/vite-plugin-electron-renderer#config-presets-opinionated).
-
-```diff
-# vite.config.ts
-
-export default {
-  plugins: [
-    ...
--   // Use Node.js API in the Renderer-process
--   renderer({
--     nodeIntegration: true,
--   }),
-    ...
-  ],
-}
+```sh
+npm run build
 ```
--->
 
-## 🔧 Additional features
+Website:
 
-1. electron-updater 👉 [see docs](src/components/update/README.md)
-1. playwright
+```sh
+npm run build:website
+```
 
-## ❔ FAQ
+## Release artifacts
 
-- [C/C++ addons, Node.js modules - Pre-Bundling](https://github.com/electron-vite/vite-plugin-electron-renderer#dependency-pre-bundling)
-- [dependencies vs devDependencies](https://github.com/electron-vite/vite-plugin-electron-renderer#dependencies-vs-devdependencies)
+By default, Electron Builder outputs to `release/${version}/` (see `electron-builder.json`).
+
+- Windows (NSIS installer): `release/<version>/MCP Dock_<version>.exe`
+- Windows (unpacked): `release/<version>/win-unpacked/`
+- macOS: `release/<version>/MCP Dock_<version>.dmg` and `.zip`
+
+### Windows build (from macOS or Windows)
+
+```sh
+npm run build -- --win --x64
+```
+
+### Signed + notarized macOS build
+
+This repo includes `scripts/release-mac.sh` which runs a signed + notarized macOS build.
+
+```sh
+npm run release:mac
+```
+
+The script expects code-signing and notarization environment variables (see the top of `scripts/release-mac.sh`).
+
+## Repository layout
+
+```text
+electron/            Electron main + preload source
+src/                 Renderer (React) source
+public/              Static assets for the desktop app
+dist/                Renderer production build output
+dist-electron/        Electron production build output
+release/             Packaged installers and unpacked apps (by version)
+website/             SvelteKit marketing site (npm workspace)
+```
+
+## Testing
+
+```sh
+npm test
+```
+
+## License
+
+MIT — see `LICENSE`.
