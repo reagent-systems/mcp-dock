@@ -7,9 +7,7 @@ import {
 } from '@tanstack/react-query'
 import { REGISTRY_BOOTSTRAP_PAGE_COUNT } from '../shared/official-registry'
 import { builtinDiscoverServers } from '../shared/builtin-discover-servers'
-import { mergeOfficialAndExtras, catalogRowKey } from '../shared/catalog'
-import type { CatalogExtraSource } from '../shared/catalog'
-import { fetchExtraCatalogs } from './lib/catalog-fetch'
+import { catalogRowKey } from '../shared/catalog'
 import { fetchRegistryPage } from './lib/registry-api'
 import type { RegistryListItem, RegistryServer } from '../shared/registry'
 import {
@@ -72,32 +70,10 @@ export default function App() {
     registryQ.fetchNextPage,
   ])
 
-  const extrasKey = JSON.stringify(prefsQ.data?.catalogExtras ?? [])
-  const extrasQ = useQuery({
-    queryKey: ['catalog-extras', extrasKey],
-    enabled: !!prefsQ.data && (prefsQ.data.catalogExtras?.length ?? 0) > 0,
-    queryFn: () => fetchExtraCatalogs(prefsQ.data!.catalogExtras),
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const extraBundles = useMemo(() => {
-    if (!extrasQ.data) return []
-    return extrasQ.data
-      .filter((r): r is { label: string; rows: RegistryListItem[] } => 'rows' in r)
-      .map((r) => ({ label: r.label, rows: filterLatestOnly(r.rows) }))
-  }, [extrasQ.data])
-
-  const extrasErrors = useMemo(
-    () =>
-      (extrasQ.data ?? []).filter((r): r is { label: string; error: string } => 'error' in r),
-    [extrasQ.data],
-  )
-
   const items = useMemo(() => {
     const official = filterLatestOnly(registryQ.data?.pages.flatMap((p) => p.servers) ?? [])
-    const merged = mergeOfficialAndExtras(official, extraBundles)
-    return [...builtinDiscoverServers, ...merged]
-  }, [registryQ.data, extraBundles])
+    return [...builtinDiscoverServers, ...official]
+  }, [registryQ.data])
 
   const filtered = useMemo(() => {
     let rows = items
@@ -125,7 +101,7 @@ export default function App() {
       <aside className="flex w-56 shrink-0 flex-col border-r border-[#252830] bg-[#0f1013]">
         <div className="border-b border-[#252830] px-4 py-5">
           <div className="text-lg font-semibold tracking-tight">MCP Dock</div>
-          <p className="mt-1 text-xs text-[#8b9099]">Browse the MCP registry plus any extra catalogs you add in Settings.</p>
+          <p className="mt-1 text-xs text-[#8b9099]">Browse the official MCP registry and curated picks.</p>
         </div>
         <nav className="flex flex-col gap-1 p-3">
           <SideBtn active={tab === 'discover'} onClick={() => setTab('discover')}>
@@ -139,11 +115,11 @@ export default function App() {
           </SideBtn>
         </nav>
         <div className="mt-auto border-t border-[#252830] p-3 text-[10px] leading-snug text-[#6d7178]">
-          Primary catalog:{' '}
+          Discover uses the{' '}
           <a className="text-[#9ccfd8]" href="https://registry.modelcontextprotocol.io/docs" target="_blank" rel="noreferrer">
             MCP Registry
-          </a>
-          . Add more directory URLs under Settings.
+          </a>{' '}
+          (paginated) plus curated picks at the top.
         </div>
       </aside>
 
@@ -152,8 +128,6 @@ export default function App() {
           <DiscoverPane
             registryQ={registryQ}
             registryPageCount={registryPageCount}
-            extrasLoading={extrasQ.isFetching}
-            extrasErrors={extrasErrors}
             installableOnly={installableOnly}
             setInstallableOnly={setInstallableOnly}
             search={search}
@@ -208,8 +182,6 @@ function SideBtn(props: {
 function DiscoverPane(props: {
   registryQ: ReturnType<typeof useInfiniteQuery>
   registryPageCount: number
-  extrasLoading: boolean
-  extrasErrors: { label: string; error: string }[]
   installableOnly: boolean
   setInstallableOnly: (v: boolean) => void
   search: string
@@ -222,8 +194,6 @@ function DiscoverPane(props: {
   const {
     registryQ,
     registryPageCount,
-    extrasLoading,
-    extrasErrors,
     installableOnly,
     setInstallableOnly,
     search,
@@ -266,11 +236,6 @@ function DiscoverPane(props: {
             placeholder="Search name or description…"
             className="h-9 min-w-[12rem] flex-1 rounded-lg border border-[#2e323c] bg-[#13151a] px-3 text-sm outline-none ring-[#c4f542] placeholder:text-[#6d7178] focus:ring-1"
           />
-          {extrasLoading && (
-            <span className="text-xs text-[#8b9099]" title="Loading extra catalogs">
-              + catalogs…
-            </span>
-          )}
           <label className="flex cursor-pointer items-center gap-2 text-xs text-[#8b9099]">
             <input
               type="checkbox"
@@ -294,12 +259,6 @@ function DiscoverPane(props: {
                 : `End of registry · ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`}
           </button>
         </header>
-        {extrasErrors.length > 0 && (
-          <div className="border-b border-amber-900/40 bg-amber-950/20 px-4 py-2 text-xs text-amber-100/90">
-            <span className="font-medium">Some extra catalogs failed:</span>{' '}
-            {extrasErrors.map((e) => `${e.label} (${e.error})`).join(' · ')}
-          </div>
-        )}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4">
           {registryQ.isError && (
             <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-sm text-red-200">
@@ -340,10 +299,7 @@ function DiscoverPane(props: {
                     <span>v{s.version}</span>
                     <div className="flex flex-wrap justify-end gap-1">
                       {row._catalogLabel && (
-                        <span
-                          className="rounded bg-[#1f2418] px-2 py-0.5 ring-1 ring-[#3d4a2a] text-[#c4f542]/90"
-                          title="From an extra catalog in Settings"
-                        >
+                        <span className="rounded bg-[#1f2418] px-2 py-0.5 ring-1 ring-[#3d4a2a] text-[#c4f542]/90">
                           {row._catalogLabel}
                         </span>
                       )}
@@ -631,41 +587,12 @@ function SettingsPane() {
   const [backupOnWrite, setBackupOnWrite] = useState(true)
   const [defaultClient, setDefaultClient] = useState<McpClient>('cursor')
   const [paths, setPaths] = useState<Partial<Record<McpClient, string>>>({})
-  const [catalogExtras, setCatalogExtras] = useState<CatalogExtraSource[]>([])
-
-  function normalizeCatalogInputUrl(
-    raw: string,
-    curKind: CatalogExtraSource['kind'],
-  ): { url: string; kind: CatalogExtraSource['kind'] } {
-    const s = raw.trim()
-    if (!s) return { url: raw, kind: curKind }
-    let u: URL
-    try {
-      u = new URL(s)
-    }
-    catch {
-      return { url: raw, kind: curKind }
-    }
-
-    // Heuristics: if it already looks like a registry endpoint, use registry mode.
-    if (u.pathname.includes('/v0/servers')) return { url: u.toString(), kind: 'registry' }
-
-    // Heuristics: if it looks like a JSON file, default to json mode.
-    if (u.pathname.toLowerCase().endsWith('.json')) return { url: u.toString(), kind: 'json' }
-
-    const host = u.hostname.replace(/^www\./, '')
-    if (host === 'mcpservers.org') return { url: u.toString(), kind: 'html' }
-
-    // Otherwise, keep whatever kind the user chose; HTML parsing is a separate kind.
-    return { url: u.toString(), kind: curKind }
-  }
 
   useEffect(() => {
     if (!q.data) return
     setBackupOnWrite(q.data.backupOnWrite)
     setDefaultClient(q.data.defaultClient)
     setPaths(q.data.pathOverrides ?? {})
-    setCatalogExtras(q.data.catalogExtras ?? [])
   }, [q.data])
 
   const save = useMutation({
@@ -678,11 +605,9 @@ function SettingsPane() {
           claude: paths.claude || undefined,
           vscode: paths.vscode || undefined,
         },
-        catalogExtras,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['prefs'] })
-      void qc.invalidateQueries({ queryKey: ['catalog-extras'] })
     },
   })
 
@@ -719,87 +644,6 @@ function SettingsPane() {
             />
           </label>
         ))}
-
-        <div className="rounded-xl border border-[#2e323c] bg-[#0f1013] p-4">
-          <h2 className="text-sm font-medium text-[#edeae3]">Extra MCP catalogs</h2>
-          <p className="mt-1 text-xs leading-relaxed text-[#8b9099]">
-            Merge more directories into Discover. Use <span className="font-mono text-[#c8ccd3]">registry</span> for
-            any MCP Registry-compatible <span className="font-mono">…/v0/servers</span> endpoint (paginates
-            automatically). Use <span className="font-mono">json</span> for a single JSON file with{' '}
-            <span className="font-mono">servers: [...]</span> in the same shape as the registry, or a bare array of
-            entries. CORS must allow this app to fetch the URL.
-          </p>
-          <ul className="mt-3 list-none space-y-3 p-0">
-            {catalogExtras.map((row, idx) => (
-              <li key={row.id} className="rounded-lg border border-[#252830] bg-[#13151a] p-3">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                  <label className="block min-w-0 text-xs">
-                    <span className="text-[#8b9099]">Label</span>
-                    <input
-                      value={row.label}
-                      onChange={(e) => {
-                        const next = [...catalogExtras]
-                        next[idx] = { ...row, label: e.target.value }
-                        setCatalogExtras(next)
-                      }}
-                      placeholder="e.g. My team mirror"
-                      className="mt-1 box-border w-full min-w-0 rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
-                    />
-                  </label>
-                  <label className="block min-w-0 text-xs">
-                    <span className="text-[#8b9099]">Kind</span>
-                    <select
-                      value={row.kind}
-                      onChange={(e) => {
-                        const next = [...catalogExtras]
-                        next[idx] = { ...row, kind: e.target.value as CatalogExtraSource['kind'] }
-                        setCatalogExtras(next)
-                      }}
-                      className="mt-1 box-border w-full min-w-0 max-w-full rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
-                    >
-                      <option value="registry">registry (paginated API)</option>
-                      <option value="json">json (single file)</option>
-                      <option value="html">html (scrape a web page)</option>
-                    </select>
-                  </label>
-                </div>
-                <label className="mt-1 block min-w-0 text-xs md:col-span-2">
-                  <span className="text-[#8b9099]">URL</span>
-                  <input
-                    value={row.url}
-                    onChange={(e) => {
-                      const normalized = normalizeCatalogInputUrl(e.target.value, row.kind)
-                      const next = [...catalogExtras]
-                      next[idx] = { ...row, url: normalized.url, kind: normalized.kind }
-                      setCatalogExtras(next)
-                    }}
-                    placeholder="https://…/v0/servers or https://…/catalog.json"
-                    className="mt-1 box-border w-full min-w-0 rounded-md border border-[#2e323c] bg-[#0f1013] px-2 py-1.5 font-mono text-xs outline-none focus:ring-1 focus:ring-[#c4f542]"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setCatalogExtras(catalogExtras.filter((_, i) => i !== idx))}
-                  className="mt-2 text-xs text-red-300/90 hover:underline"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() =>
-              setCatalogExtras((prev) => [
-                ...prev,
-                { id: crypto.randomUUID(), label: '', kind: 'html', url: '' },
-              ])
-            }
-            className="mt-3 rounded-lg bg-[#1b1d24] px-3 py-2 text-xs ring-1 ring-[#2e323c] hover:bg-[#22252e]"
-          >
-            Add catalog
-          </button>
-        </div>
 
         <button
           type="button"

@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CatalogExtraSource } from '../../shared/catalog.js'
 import type { RegistryServer } from '../../shared/registry.js'
 
 export type McpClient = 'cursor' | 'claude' | 'vscode'
@@ -8,7 +7,6 @@ export interface AppPrefs {
   backupOnWrite: boolean
   pathOverrides: Partial<Record<McpClient, string>>
   defaultClient: McpClient
-  catalogExtras: CatalogExtraSource[]
 }
 
 contextBridge.exposeInMainWorld('mcpDock', {
@@ -32,8 +30,6 @@ contextBridge.exposeInMainWorld('mcpDock', {
     ipcRenderer.invoke('mcp-dock:list-installed', client),
   revealConfig: (client: McpClient): Promise<void> =>
     ipcRenderer.invoke('mcp-dock:reveal-config', client),
-  fetchCatalogText: (url: string): Promise<string> =>
-    ipcRenderer.invoke('mcp-dock:fetch-catalog-text', url),
   enrichMcpserversOrgServer: (server: RegistryServer): Promise<RegistryServer> =>
     ipcRenderer.invoke('mcp-dock:enrich-mcpservers-org', server),
 })
