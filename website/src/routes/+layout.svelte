@@ -1,8 +1,10 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import { page } from '$app/stores';
 	import '../app.css';
 
 	let { children } = $props();
+
+	const ogImageUrl = $derived(new URL('/brand/og-image.png', $page.url.origin).href);
 </script>
 
 <svelte:head>
@@ -18,6 +20,21 @@
 		content="Browse the MCP Registry and install servers into Cursor, Claude Desktop, and VS Code."
 	/>
 	<meta property="og:type" content="website" />
+	<meta property="og:image" content={ogImageUrl} />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta
+		property="og:image:alt"
+		content="MCP Dock — browse the MCP Registry and install servers into Cursor, Claude Desktop, and VS Code."
+	/>
+
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="MCP Dock" />
+	<meta
+		name="twitter:description"
+		content="Browse the MCP Registry and install servers into Cursor, Claude Desktop, and VS Code."
+	/>
+	<meta name="twitter:image" content={ogImageUrl} />
 </svelte:head>
 
 <div class="shell">
