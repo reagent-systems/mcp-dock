@@ -5,6 +5,9 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
+		interface LayoutData {
+			siteUrl: string;
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}
