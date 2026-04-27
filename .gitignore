@@ -26,7 +26,7 @@ AuthKey_*.p8
 *.sln
 *.sw?
 
-# lockfiles (keep root package-lock.json tracked for reproducible CI — npm ci)
+# lockfiles — root ./package-lock.json is intentionally NOT listed here (npm ci / CI)
 pnpm-lock.yaml
 yarn.lock
 # npm workspaces resolve deps in root lockfile only; nested locks break `npm ci`
