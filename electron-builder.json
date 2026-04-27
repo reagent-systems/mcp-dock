@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "dev.mcpdock.app",
   "asar": true,
+  "afterPack": "scripts/after-pack-strip-asar-integrity.cjs",
   "directories": {
     "output": "release/${version}"
   },
