@@ -70,7 +70,7 @@ app.whenReady().then(() => {
   registerMcpDockIpc()
   createApplicationMenu()
   createWindow()
-  setupAutoUpdater(!!VITE_DEV_SERVER_URL)
+  setupAutoUpdater()
 })
 
 app.on('window-all-closed', () => {

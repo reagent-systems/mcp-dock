@@ -10,6 +10,7 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 const START_DELAY_MS = 4_000
 
 let autoUpdaterListenersAttached = false
+let updateReadyDialogVisible = false
 
 function log(msg: string, err?: unknown): void {
   if (err !== undefined) console.error(`[mcp-dock:updater] ${msg}`, err)
@@ -32,7 +33,29 @@ function attachAutoUpdaterListeners(): void {
   autoUpdater.on('checking-for-update', () => log('checking-for-update'))
   autoUpdater.on('update-available', (info) => log(`update-available → ${info.version}`))
   autoUpdater.on('update-not-available', () => log('update-not-available'))
-  autoUpdater.on('update-downloaded', (info) => log(`update-downloaded → ${info.version}`))
+  autoUpdater.on('update-downloaded', (event) => {
+    log(`update-downloaded → ${event.version}`)
+    if (!app.isPackaged || updateReadyDialogVisible) return
+    updateReadyDialogVisible = true
+    void (async () => {
+      try {
+        const { response } = await dialog.showMessageBox({
+          type: 'info',
+          buttons: ['Restart', 'Later'],
+          defaultId: 0,
+          cancelId: 1,
+          title: 'MCP Dock',
+          message: `Version ${event.version} is ready to install.`,
+        })
+        if (response === 0) {
+          autoUpdater.quitAndInstall()
+        }
+      }
+      finally {
+        updateReadyDialogVisible = false
+      }
+    })()
+  })
 }
 
 function scheduleBackgroundChecks(): void {
@@ -45,14 +68,14 @@ function scheduleBackgroundChecks(): void {
 
 /**
  * Check GitHub Releases for newer builds (electron-builder publish metadata).
- * Skips background checks in dev; Linux has no supported auto-update target.
+ * Skips background checks when unpackaged (dev); Linux has no supported auto-update target.
  */
-export function setupAutoUpdater(devMode: boolean): void {
+export function setupAutoUpdater(): void {
   if (process.env.MCP_DOCK_SKIP_UPDATES === '1') return
   if (process.platform !== 'darwin' && process.platform !== 'win32') return
 
   attachAutoUpdaterListeners()
-  if (devMode) return
+  if (!app.isPackaged) return
 
   scheduleBackgroundChecks()
 }
