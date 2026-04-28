@@ -33,6 +33,13 @@
     ],
     "artifactName": "${productName}_${version}.${ext}"
   },
+  "linux": {
+    "target": [
+      "tar.gz"
+    ],
+    "category": "Development",
+    "artifactName": "${productName}_${version}.${ext}"
+  },
   "nsis": {
     "oneClick": false,
     "perMachine": false,
