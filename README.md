@@ -54,9 +54,9 @@ npm run build:website
 
 By default, Electron Builder outputs to `release/${version}/` (see `electron-builder.json`).
 
-- Windows (NSIS installer): `release/<version>/MCP Dock_<version>.exe`
+- Windows (NSIS installer): `release/<version>/MCP-Dock_<version>.exe`
 - Windows (unpacked): `release/<version>/win-unpacked/`
-- macOS: `release/<version>/MCP Dock_<version>.dmg` and `.zip`
+- macOS: `release/<version>/MCP-Dock_<version>.dmg` and `.zip`
 
 ### Windows build (from macOS or Windows)
 

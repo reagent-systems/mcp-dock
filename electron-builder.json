@@ -10,8 +10,8 @@
     "dist-electron",
     "dist"
   ],
+  "artifactName": "MCP-Dock_${version}.${ext}",
   "mac": {
-    "artifactName": "${productName}_${version}.${ext}",
     "category": "public.app-category.developer-tools",
     "hardenedRuntime": true,
     "entitlements": "build/entitlements.mac.plist",
@@ -30,15 +30,13 @@
           "x64"
         ]
       }
-    ],
-    "artifactName": "${productName}_${version}.${ext}"
+    ]
   },
   "linux": {
     "target": [
       "tar.gz"
     ],
-    "category": "Development",
-    "artifactName": "${productName}_${version}.${ext}"
+    "category": "Development"
   },
   "nsis": {
     "oneClick": false,
