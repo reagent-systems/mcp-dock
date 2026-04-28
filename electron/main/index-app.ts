@@ -4,6 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { registerMcpDockIpc } from './mcp-dock-handlers.js'
 import { ensurePrefsFile } from './prefs.js'
+import { setupAutoUpdater } from './updater.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -67,6 +68,7 @@ app.whenReady().then(() => {
   ensurePrefsFile()
   registerMcpDockIpc()
   createWindow()
+  setupAutoUpdater(!!VITE_DEV_SERVER_URL)
 })
 
 app.on('window-all-closed', () => {
