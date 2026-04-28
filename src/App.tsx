@@ -20,6 +20,20 @@ import { filterLatestOnly, listRequiredInputs, suggestServerKey } from '../share
 type Tab = 'discover' | 'installed' | 'settings'
 type McpClient = 'cursor' | 'claude' | 'vscode'
 
+const MCP_DOCK_REPO = 'https://github.com/reagent-systems/mcp-dock'
+const DONATE_URL = 'https://github.com/sponsors/reagent-systems'
+const FEEDBACK_URL = `${MCP_DOCK_REPO}/issues/new`
+const FOLLOW_X_URL = 'https://x.com/MCPDock'
+
+/** Sidebar rows: inactive matches Feedback / Follow; active tab = lime; Donate = deep blue-gray. */
+const sidebarNav = {
+  row: 'block w-full appearance-none border-0 rounded-lg px-3 py-2 text-left text-sm no-underline transition hover:no-underline',
+  inactive: 'bg-transparent text-[#bfc3c9] hover:bg-[#16181e]',
+  active: 'bg-[#c4f542] font-medium text-[#0c0d0f] hover:bg-[#d6ff5c]',
+  donate:
+    'bg-[#2a3142] font-medium text-[#e4e7ec] hover:bg-[#343c50] hover:text-[#f0f2f5]',
+} as const
+
 function transportLabel(server: RegistryServer): string {
   const p = server.packages?.[0]
   if (p?.transport?.type === 'stdio') {
@@ -103,18 +117,46 @@ export default function App() {
           <div className="text-lg font-semibold tracking-tight">MCP Dock</div>
           <p className="mt-1 text-xs text-[#8b9099]">Browse the official MCP registry and curated picks.</p>
         </div>
-        <nav className="flex flex-col gap-1 p-3">
-          <SideBtn active={tab === 'discover'} onClick={() => setTab('discover')}>
-            Discover
-          </SideBtn>
-          <SideBtn active={tab === 'installed'} onClick={() => setTab('installed')}>
-            Installed
-          </SideBtn>
-          <SideBtn active={tab === 'settings'} onClick={() => setTab('settings')}>
-            Settings
-          </SideBtn>
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 p-3">
+          <div className="flex flex-col gap-1 pb-3">
+            <SideBtn active={tab === 'discover'} onClick={() => setTab('discover')}>
+              Discover
+            </SideBtn>
+            <SideBtn active={tab === 'installed'} onClick={() => setTab('installed')}>
+              Installed
+            </SideBtn>
+            <SideBtn active={tab === 'settings'} onClick={() => setTab('settings')}>
+              Settings
+            </SideBtn>
+          </div>
+          <div className="mt-auto flex flex-col gap-1 pt-3">
+            <a
+              href={DONATE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={`${sidebarNav.row} ${sidebarNav.donate}`}
+            >
+              Donate
+            </a>
+            <a
+              href={FEEDBACK_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={`${sidebarNav.row} ${sidebarNav.inactive}`}
+            >
+              Feedback
+            </a>
+            <a
+              href={FOLLOW_X_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={`${sidebarNav.row} ${sidebarNav.inactive}`}
+            >
+              Follow us on X
+            </a>
+          </div>
         </nav>
-        <div className="mt-auto border-t border-[#252830] p-3 text-[10px] leading-snug text-[#6d7178]">
+        <div className="border-t border-[#252830] p-3 text-[10px] leading-snug text-[#6d7178]">
           Discover uses the{' '}
           <a className="text-[#9ccfd8]" href="https://registry.modelcontextprotocol.io/docs" target="_blank" rel="noreferrer">
             MCP Registry
@@ -168,11 +210,7 @@ function SideBtn(props: {
     <button
       type="button"
       onClick={props.onClick}
-      className={`rounded-lg px-3 py-2 text-left text-sm transition ${
-        props.active
-          ? 'bg-[#1b1d24] text-[#edeae3] ring-1 ring-[#c4f542]/35'
-          : 'text-[#bfc3c9] hover:bg-[#16181e]'
-      }`}
+      className={`${sidebarNav.row} ${props.active ? sidebarNav.active : sidebarNav.inactive}`}
     >
       {props.children}
     </button>
@@ -373,7 +411,7 @@ function DetailPanel({ server, onInstall }: { server: RegistryServer; onInstall:
           type="button"
           disabled={!gate.allowed}
           onClick={() => gate.allowed && onInstall()}
-          className="h-10 w-full rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:cursor-not-allowed disabled:opacity-45"
+          className="h-10 w-full appearance-none border-0 rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:cursor-not-allowed disabled:opacity-45"
         >
           Install…
         </button>
@@ -509,7 +547,7 @@ function InstallModal({
             type="button"
             onClick={() => mut.mutate()}
             disabled={mut.isPending || (catalogEnrichPending && enrichQ.isFetching)}
-            className="h-10 flex-1 rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:opacity-50"
+            className="h-10 flex-1 appearance-none border-0 rounded-lg bg-[#c4f542] text-sm font-medium text-[#0c0d0f] hover:bg-[#d6ff5c] disabled:opacity-50"
           >
             {mut.isPending ? 'Writing config…' : 'Install'}
           </button>
