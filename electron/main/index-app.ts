@@ -5,6 +5,7 @@ import os from 'node:os'
 import { registerMcpDockIpc } from './mcp-dock-handlers.js'
 import { ensurePrefsFile } from './prefs.js'
 import { setupAutoUpdater } from './updater.js'
+import { createApplicationMenu } from './menu.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -67,6 +68,7 @@ async function createWindow() {
 app.whenReady().then(() => {
   ensurePrefsFile()
   registerMcpDockIpc()
+  createApplicationMenu()
   createWindow()
   setupAutoUpdater(!!VITE_DEV_SERVER_URL)
 })

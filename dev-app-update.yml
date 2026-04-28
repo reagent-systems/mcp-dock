@@ -1,0 +1,6 @@
+# Used when the app is not packaged (e.g. `npm run dev` with Check for Updates).
+# Must mirror electron-builder.json "publish". See:
+# https://www.electron.build/auto-update.html#debugging
+provider: github
+owner: reagent-systems
+repo: mcp-dock
