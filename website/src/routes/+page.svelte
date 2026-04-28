@@ -1,3 +1,10 @@
+<script lang="ts">
+	import ReleaseDownloadLink from '$lib/ReleaseDownloadLink.svelte';
+
+	let { data } = $props();
+	const releaseAssets = $derived(data.releaseAssets);
+</script>
+
 <section class="hero">
 	<div class="container">
 		<div class="hero-grid">
@@ -15,9 +22,11 @@
 				</p>
 
 				<div class="btn-row">
-					<a class="btn btn-primary" href="https://github.com/reagent-systems/mcp-dock/releases">
-						Download for macOS
-					</a>
+					<ReleaseDownloadLink
+						linkClass="btn btn-primary"
+						variant="hero"
+						assets={releaseAssets}
+					/>
 					<a class="btn" href="https://github.com/reagent-systems/mcp-dock">View on GitHub</a>
 				</div>
 			</div>

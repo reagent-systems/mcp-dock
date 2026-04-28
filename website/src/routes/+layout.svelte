@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import ReleaseDownloadLink from '$lib/ReleaseDownloadLink.svelte';
 	import '../app.css';
 
 	let { data, children } = $props();
@@ -62,7 +63,11 @@
 			</nav>
 
 			<div class="btn-row">
-				<a class="btn btn-primary" href="https://github.com/reagent-systems/mcp-dock/releases">Download</a>
+				<ReleaseDownloadLink
+					linkClass="btn btn-primary"
+					variant="compact"
+					assets={data.releaseAssets}
+				/>
 				<a class="btn" href="https://github.com/reagent-systems/mcp-dock">GitHub</a>
 			</div>
 		</div>
