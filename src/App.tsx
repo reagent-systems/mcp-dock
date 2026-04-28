@@ -27,7 +27,7 @@ const FOLLOW_X_URL = 'https://x.com/MCPDock'
 
 /** Sidebar rows: inactive matches Feedback / Follow; active tab = lime; Donate = deep blue-gray. */
 const sidebarNav = {
-  row: 'block w-full appearance-none border-0 rounded-lg px-3 py-2 text-left text-sm no-underline transition hover:no-underline',
+  row: 'box-border block w-full max-w-full appearance-none border-0 rounded-lg px-3 py-2 text-left text-sm no-underline transition hover:no-underline',
   inactive: 'bg-transparent text-[#bfc3c9] hover:bg-[#16181e]',
   active: 'bg-[#c4f542] font-medium text-[#0c0d0f] hover:bg-[#d6ff5c]',
   donate:
