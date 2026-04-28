@@ -1,6 +1,6 @@
 {
   "name": "mcp-dock",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "dist-electron/main/bootstrap.js",
   "description": "Browse the MCP Registry and install servers into Cursor, Claude Desktop, and VS Code.",
   "author": "MCP Dock",

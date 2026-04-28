@@ -16,6 +16,7 @@ import {
   resolveRegistryInstallTarget,
 } from '../shared/install-target'
 import { filterLatestOnly, listRequiredInputs, suggestServerKey } from '../shared/install'
+import pkg from '../package.json'
 
 type Tab = 'discover' | 'installed' | 'settings'
 type McpClient = 'cursor' | 'claude' | 'vscode'
@@ -690,6 +691,7 @@ function SettingsPane() {
         >
           {save.isSuccess ? 'Saved' : save.isPending ? 'Saving…' : 'Save settings'}
         </button>
+        <p className="pt-2 text-xs text-[#6d7178]">Version {pkg.version}</p>
       </div>
     </div>
   )
