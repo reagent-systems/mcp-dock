@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
@@ -247,6 +247,23 @@ function DiscoverPane(props: {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const registryQRef = useRef(registryQ)
   registryQRef.current = registryQ
+  const [loadingFullRegistry, setLoadingFullRegistry] = useState(false)
+
+  /** Follow `metadata.nextCursor` until the registry list is fully fetched (API pages are capped at 100 each). */
+  const loadFullRegistry = useCallback(async () => {
+    if (!registryQ.hasNextPage) return
+    setLoadingFullRegistry(true)
+    try {
+      const maxPages = 500
+      for (let i = 0; i < maxPages; i++) {
+        const result = await registryQ.fetchNextPage()
+        if (!result.hasNextPage) break
+      }
+    }
+    finally {
+      setLoadingFullRegistry(false)
+    }
+  }, [registryQ])
 
   useEffect(() => {
     const root = scrollRef.current
@@ -286,16 +303,18 @@ function DiscoverPane(props: {
           </label>
           <button
             type="button"
-            onClick={() => registryQ.fetchNextPage()}
-            disabled={!registryQ.hasNextPage || registryQ.isFetchingNextPage}
+            onClick={() => void loadFullRegistry()}
+            disabled={
+              !registryQ.hasNextPage || registryQ.isFetchingNextPage || loadingFullRegistry
+            }
             className="h-9 shrink-0 rounded-lg bg-[#1b1d24] px-3 text-sm text-[#edeae3] ring-1 ring-[#2e323c] hover:bg-[#22252e] disabled:opacity-40"
-            title="Uses registry API cursor pagination (metadata.nextCursor)"
+            title="Fetches every remaining page from the registry API (cursor pagination)"
           >
-            {registryQ.isFetchingNextPage
+            {loadingFullRegistry || registryQ.isFetchingNextPage
               ? 'Loading…'
               : registryQ.hasNextPage
-                ? `Load more · registry ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`
-                : `End of registry · ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`}
+                ? `Load all from registry · ${registryPageCount} page${registryPageCount === 1 ? '' : 's'} so far`
+                : `Registry fully loaded · ${registryPageCount} page${registryPageCount === 1 ? '' : 's'}`}
           </button>
         </header>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4">
