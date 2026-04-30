@@ -59,11 +59,6 @@ By default, Electron Builder outputs to `release/${version}/` (see `electron-bui
 - macOS: `release/<version>/MCP-Dock_<version>.dmg` and `.zip`
 - Linux: `release/<version>/MCP-Dock_<version>.tar.gz`
 
-### Signatures
-
-- macOS signing + notarization: `npm run release:mac`
-- Windows Authenticode + Linux checksum/GPG signing (CI): see `docs/signing.md`
-
 ### Windows build (from macOS or Windows)
 
 ```sh

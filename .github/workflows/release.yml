@@ -18,14 +18,6 @@ jobs:
           - os: ubuntu-latest
           - os: windows-latest
     runs-on: ${{ matrix.os }}
-    env:
-      # GitHub Actions does not allow `secrets.*` in `if:` expressions.
-      # Mirror secrets into env so we can conditionally run steps.
-      WIN_CSC_LINK_B64: ${{ secrets.WIN_CSC_LINK_B64 }}
-      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-      RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
-      RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
-      RELEASE_GPG_KEY_ID: ${{ secrets.RELEASE_GPG_KEY_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,57 +36,10 @@ jobs:
         shell: bash
         run: echo "pkg=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # Optional: Authenticode-sign Windows NSIS installer via electron-builder.
-      # Configure secrets per docs/signing.md.
-      - name: Configure Windows code signing (optional)
-        if: ${{ runner.os == 'Windows' && env.WIN_CSC_LINK_B64 != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ./.secrets
-          echo "$WIN_CSC_LINK_B64" | base64 --decode > ./.secrets/windows-code-signing.p12
-          {
-            echo "WIN_CSC_LINK=${GITHUB_WORKSPACE}/.secrets/windows-code-signing.p12"
-            echo "WIN_CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-
       - name: Build and package
         run: npm run build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Always publish checksums; optionally sign them (and/or individual artifacts) with GPG.
-      - name: Generate SHA256SUMS
-        shell: bash
-        run: |
-          set -euo pipefail
-          rel="release/${{ steps.version.outputs.pkg }}"
-          cd "$rel"
-          ls -la
-          # Hash only the top-level artifacts we upload
-          shasum -a 256 ./* > SHA256SUMS
-
-      - name: Import GPG key (optional)
-        if: ${{ env.RELEASE_GPG_PRIVATE_KEY != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "$RELEASE_GPG_PRIVATE_KEY" > /tmp/release-signing.key
-          gpg --batch --import /tmp/release-signing.key
-          rm -f /tmp/release-signing.key
-          # Trust ultimately so signing works in CI without prompts
-          if [[ -n "${RELEASE_GPG_KEY_ID:-}" ]]; then
-            printf '5\ny\n' | gpg --batch --command-fd 0 --expert --edit-key "$RELEASE_GPG_KEY_ID" trust
-          fi
-
-      - name: Sign SHA256SUMS (optional)
-        if: ${{ env.RELEASE_GPG_PRIVATE_KEY != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rel="release/${{ steps.version.outputs.pkg }}"
-          cd "$rel"
-          gpg --batch --pinentry-mode loopback --passphrase "${RELEASE_GPG_PASSPHRASE:-}" --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
 
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
