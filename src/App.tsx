@@ -20,6 +20,7 @@ import pkg from '../package.json'
 
 type Tab = 'discover' | 'installed' | 'settings'
 type McpClient = 'cursor' | 'claude' | 'vscode'
+type DiscoverSort = 'recommended' | 'name-asc' | 'name-desc' | 'title-asc' | 'version-desc' | 'installable-first'
 
 const MCP_DOCK_REPO = 'https://github.com/reagent-systems/mcp-dock'
 const DONATE_URL = 'https://github.com/sponsors/reagent-systems'
@@ -53,7 +54,7 @@ export default function App() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('discover')
   const [search, setSearch] = useState('')
-  const [installableOnly, setInstallableOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<DiscoverSort>('recommended')
   const [selected, setSelected] = useState<RegistryServer | null>(null)
   const [installOpen, setInstallOpen] = useState(false)
 
@@ -92,14 +93,6 @@ export default function App() {
 
   const filtered = useMemo(() => {
     let rows = items
-    if (installableOnly) {
-      rows = rows.filter((row) => {
-        const s = row.server
-        if (s.name.startsWith('mcpservers.org/servers/')) return true
-        if (mayResolveViaGithubReadmeEnrich(s)) return true
-        return resolveRegistryInstallTarget(s).ok
-      })
-    }
     const q = search.trim().toLowerCase()
     if (!q) return rows
     return rows.filter((row) => {
@@ -107,7 +100,39 @@ export default function App() {
       const hay = `${s.name} ${s.title ?? ''} ${s.description ?? ''}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [items, installableOnly, search])
+  }, [items, search])
+
+  const sorted = useMemo(() => {
+    const keyForName = (row: RegistryListItem) => row.server.name
+    const keyForTitle = (row: RegistryListItem) => row.server.title ?? row.server.name
+    const isInstallable = (row: RegistryListItem) => {
+      const s = row.server
+      if (s.name.startsWith('mcpservers.org/servers/')) return true
+      if (mayResolveViaGithubReadmeEnrich(s)) return true
+      return resolveRegistryInstallTarget(s).ok
+    }
+
+    const indexed = filtered.map((row, idx) => ({ row, idx }))
+    indexed.sort((a, b) => {
+      if (sortBy === 'recommended') return a.idx - b.idx
+      if (sortBy === 'installable-first') {
+        const da = isInstallable(a.row) ? 0 : 1
+        const db = isInstallable(b.row) ? 0 : 1
+        if (da !== db) return da - db
+        return a.idx - b.idx
+      }
+      if (sortBy === 'name-asc') return keyForName(a.row).localeCompare(keyForName(b.row)) || (a.idx - b.idx)
+      if (sortBy === 'name-desc') return keyForName(b.row).localeCompare(keyForName(a.row)) || (a.idx - b.idx)
+      if (sortBy === 'title-asc') return keyForTitle(a.row).localeCompare(keyForTitle(b.row)) || (a.idx - b.idx)
+      if (sortBy === 'version-desc') {
+        const av = a.row.server.version
+        const bv = b.row.server.version
+        return bv.localeCompare(av, undefined, { numeric: true, sensitivity: 'base' }) || (a.idx - b.idx)
+      }
+      return a.idx - b.idx
+    })
+    return indexed.map((x) => x.row)
+  }, [filtered, sortBy])
 
   const registryPageCount = registryQ.data?.pages.length ?? 0
 
@@ -171,11 +196,11 @@ export default function App() {
           <DiscoverPane
             registryQ={registryQ}
             registryPageCount={registryPageCount}
-            installableOnly={installableOnly}
-            setInstallableOnly={setInstallableOnly}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
             search={search}
             setSearch={setSearch}
-            filtered={filtered}
+            filtered={sorted}
             selected={selected}
             onSelect={(row) => {
               setSelected(row.server)
@@ -221,8 +246,8 @@ function SideBtn(props: {
 function DiscoverPane(props: {
   registryQ: ReturnType<typeof useInfiniteQuery>
   registryPageCount: number
-  installableOnly: boolean
-  setInstallableOnly: (v: boolean) => void
+  sortBy: DiscoverSort
+  setSortBy: (v: DiscoverSort) => void
   search: string
   setSearch: (v: string) => void
   filtered: RegistryListItem[]
@@ -233,8 +258,8 @@ function DiscoverPane(props: {
   const {
     registryQ,
     registryPageCount,
-    installableOnly,
-    setInstallableOnly,
+    sortBy,
+    setSortBy,
     search,
     setSearch,
     filtered,
@@ -292,15 +317,19 @@ function DiscoverPane(props: {
             placeholder="Search name or description…"
             className="h-9 min-w-[12rem] flex-1 rounded-lg border border-[#2e323c] bg-[#13151a] px-3 text-sm outline-none ring-[#c4f542] placeholder:text-[#6d7178] focus:ring-1"
           />
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-[#8b9099]">
-            <input
-              type="checkbox"
-              checked={installableOnly}
-              onChange={(e) => setInstallableOnly(e.target.checked)}
-              className="rounded border-[#2e323c] bg-[#13151a] text-[#c4f542] focus:ring-[#c4f542]"
-            />
-            Auto-installable only
-          </label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as DiscoverSort)}
+            className="h-9 rounded-lg border border-[#2e323c] bg-[#13151a] px-3 text-sm outline-none focus:ring-1 focus:ring-[#c4f542]"
+            aria-label="Sort"
+          >
+            <option value="recommended">Recommended</option>
+            <option value="installable-first">Installable first</option>
+            <option value="title-asc">Title (A→Z)</option>
+            <option value="name-asc">Name (A→Z)</option>
+            <option value="name-desc">Name (Z→A)</option>
+            <option value="version-desc">Version (newest first)</option>
+          </select>
           <button
             type="button"
             onClick={() => void loadFullRegistry()}
