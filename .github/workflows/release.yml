@@ -39,7 +39,7 @@ jobs:
       # Optional: Authenticode-sign Windows NSIS installer via electron-builder.
       # Configure secrets per docs/signing.md.
       - name: Configure Windows code signing (optional)
-        if: runner.os == 'Windows' && secrets.WIN_CSC_LINK_B64 != ''
+        if: ${{ runner.os == 'Windows' && secrets.WIN_CSC_LINK_B64 != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -67,7 +67,7 @@ jobs:
           shasum -a 256 ./* > SHA256SUMS
 
       - name: Import GPG key (optional)
-        if: secrets.RELEASE_GPG_PRIVATE_KEY != ''
+        if: ${{ secrets.RELEASE_GPG_PRIVATE_KEY != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -80,7 +80,7 @@ jobs:
           fi
 
       - name: Sign SHA256SUMS (optional)
-        if: secrets.RELEASE_GPG_PRIVATE_KEY != ''
+        if: ${{ secrets.RELEASE_GPG_PRIVATE_KEY != '' }}
         shell: bash
         run: |
           set -euo pipefail
