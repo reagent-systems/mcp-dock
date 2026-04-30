@@ -6,12 +6,19 @@
   "directories": {
     "output": "release/${version}"
   },
+  "extraResources": [
+    {
+      "from": "build/icon.png",
+      "to": "icon.png"
+    }
+  ],
   "files": [
     "dist-electron",
     "dist"
   ],
   "artifactName": "MCP-Dock_${version}.${ext}",
   "mac": {
+    "icon": "build/icon.icns",
     "category": "public.app-category.developer-tools",
     "hardenedRuntime": true,
     "entitlements": "build/entitlements.mac.plist",
@@ -23,6 +30,7 @@
     ]
   },
   "win": {
+    "icon": "build/icon.ico",
     "target": [
       {
         "target": "nsis",
@@ -33,6 +41,7 @@
     ]
   },
   "linux": {
+    "icon": "build/icon.png",
     "target": [
       "tar.gz"
     ],

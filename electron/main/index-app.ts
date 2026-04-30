@@ -33,12 +33,19 @@ const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 async function createWindow() {
+  const windowIcon =
+    process.platform === 'darwin'
+      ? undefined
+      : VITE_DEV_SERVER_URL
+        ? path.join(process.env.APP_ROOT ?? '', 'build', 'icon.png')
+        : path.join(process.resourcesPath, 'icon.png')
   win = new BrowserWindow({
     title: 'MCP Dock',
     width: 1280,
     height: 800,
     minWidth: 960,
     minHeight: 640,
+    ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       preload,
       contextIsolation: true,
