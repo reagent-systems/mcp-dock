@@ -26,7 +26,10 @@ async function main() {
 
   await fs.writeFile(outPng, composed)
 
-  const ico = await pngToIco([composed], { resize: true, sizes: [16, 24, 32, 48, 64, 128, 256] })
+  // NSIS is picky: include only standard ICO sizes up to 256x256.
+  const icoSizes = [16, 24, 32, 48, 64, 128, 256]
+  const icoPngs = await Promise.all(icoSizes.map((s) => sharp(composed).resize(s, s).png().toBuffer()))
+  const ico = await pngToIco(icoPngs)
   await fs.writeFile(outIco, ico)
 
   if (process.platform === 'darwin') {
