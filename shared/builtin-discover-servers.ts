@@ -14,6 +14,14 @@ const STRIPE_MCP_DOCS_URL = 'https://docs.stripe.com/mcp'
 const SUPABASE_MCP_DOCS_URL = 'https://supabase.com/docs/guides/getting-started/mcp'
 const SUPABASE_MCP_REPO = 'https://github.com/supabase-community/supabase-mcp'
 const NOTION_MCP_REPO = 'https://github.com/makenotion/notion-mcp-server'
+const AWESOME_IONIC_MCP_REPO = 'https://github.com/Tommertom/awesome-ionic-mcp'
+const BLENDER_LAB_MCP_URL = 'https://www.blender.org/lab/mcp-server/'
+const HF_MCP_DOCS_URL = 'https://huggingface.co/docs/hub/agents-mcp'
+const HF_MCP_REMOTE_URL = 'https://huggingface.co/mcp'
+const CLOUDFLARE_MCP_DOCS_URL =
+  'https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/'
+const CLOUDFLARE_API_MCP_REMOTE_URL = 'https://mcp.cloudflare.com/mcp'
+const CLOUDFLARE_MCP_REPO = 'https://github.com/cloudflare/mcp'
 
 export const BUILTIN_DISCOVER_CATALOG_LABEL = 'MCP Dock picks'
 
@@ -104,6 +112,61 @@ export const builtinDiscoverServers: RegistryListItem[] = [
     'https://mcp.supabase.com/mcp',
     SUPABASE_MCP_DOCS_URL,
     SUPABASE_MCP_REPO,
+  ),
+  {
+    server: {
+      name: 'Tommertom/awesome-ionic-mcp',
+      title: 'Awesome Ionic MCP',
+      description:
+        'Ionic Framework + Capacitor: components, plugins, docs, and Ionic/Capacitor CLI tools (React, Angular, Vue, Vanilla). Run via npx; optional GITHUB_TOKEN avoids GitHub API rate limits during startup.',
+      version: 'latest',
+      websiteUrl: AWESOME_IONIC_MCP_REPO,
+      repository: { url: AWESOME_IONIC_MCP_REPO, source: 'github' },
+      packages: [
+        {
+          registryType: 'npm',
+          identifier: 'awesome-ionic-mcp',
+          version: 'latest',
+          transport: { type: 'stdio' },
+          environmentVariables: [
+            {
+              name: 'GITHUB_TOKEN',
+              description:
+                'Optional. Authenticates GitHub API requests (higher rate limit for Capacitor Community / CapGo metadata).',
+              isRequired: false,
+              isSecret: true,
+            },
+          ],
+        },
+      ],
+    },
+    _catalogLabel: BUILTIN_DISCOVER_CATALOG_LABEL,
+  },
+  {
+    server: {
+      name: 'blender.org/lab-mcp-server',
+      title: 'Blender MCP Server',
+      description:
+        'Blender Lab MCP: natural language + Blender Python API (Blender 5.1+). Requires the add-on, an LLM client, and an MCP server — follow Blender Lab installation (not a single npx install).',
+      version: 'latest',
+      websiteUrl: BLENDER_LAB_MCP_URL,
+    },
+    _catalogLabel: BUILTIN_DISCOVER_CATALOG_LABEL,
+  },
+  builtinRemoteRow(
+    'huggingface/hub-mcp',
+    'Hugging Face MCP Server',
+    'Search Hub models, datasets, Spaces, and papers; semantic doc search; community Gradio tools from Spaces. Enable tools and copy config from your Hugging Face MCP settings, then connect with OAuth.',
+    HF_MCP_REMOTE_URL,
+    HF_MCP_DOCS_URL,
+  ),
+  builtinRemoteRow(
+    'cloudflare/api-mcp',
+    'Cloudflare API MCP',
+    'Managed remote MCP for the Cloudflare API (OAuth). Search and execute across Cloudflare products; product-specific MCP URLs are listed in Cloudflare docs.',
+    CLOUDFLARE_API_MCP_REMOTE_URL,
+    CLOUDFLARE_MCP_DOCS_URL,
+    CLOUDFLARE_MCP_REPO,
   ),
   {
     server: {
